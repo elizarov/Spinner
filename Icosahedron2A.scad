@@ -1,8 +1,10 @@
 
 // shape height
 sh = 30;
-// border width
-bw = 3;
+// plane width
+pw = 1.5;
+// wire width
+vw = 3;
 
 
 translate([0, 0, sh / 2]) 
@@ -65,23 +67,28 @@ module iface_rotate() {
     rotate([0, ifa, 0]) children();
 }
 
-module icosahedron0() {
-    scale(bw / 2 / ifr) polyhedron(ivert, iface);    
+module icosahedron0p() {
+    scale(pw / 2 / ifr) polyhedron(ivert, iface);    
+}
+
+module icosahedron0v() {
+    scale(vw / 2 / ifr) polyhedron(ivert, iface);    
 }
 
 module icosahedron1() {
-    s = (sh - bw) / 2 / ifr;
+    ps = (sh - pw) / 2 / ifr;    
     module h4(a, b, c, d) {
         hull() {
-            translate(ivert[a] * s) icosahedron0();
-            translate(ivert[b] * s) icosahedron0();
-            translate(ivert[c] * s) icosahedron0();
-            translate(ivert[d] * s) icosahedron0();
+            translate(ivert[a] * ps) icosahedron0p();
+            translate(ivert[b] * ps) icosahedron0p();
+            translate(ivert[c] * ps) icosahedron0p();
+            translate(ivert[d] * ps) icosahedron0p();
         }
     }
     h4(0, 1, 10, 11);
     h4(4, 5, 6, 7);
     h4(2, 3, 8, 9);
+    vs = (sh - vw) / 2 / ifr;
     for (f = iface) {
         for (i = [0:2]) {
             j = (i + 1) % 3;
@@ -89,8 +96,8 @@ module icosahedron1() {
             q = f[j];
             if (p < q) {
                 hull() {
-                    translate(ivert[p] * s) icosahedron0();
-                    translate(ivert[q] * s) icosahedron0();
+                    translate(ivert[p] * vs) icosahedron0v();
+                    translate(ivert[q] * vs) icosahedron0v();
                 }                
             }
         }
