@@ -73,7 +73,8 @@ module dodecahedron1() {
 }
 
 module dodecahedron0() {
-    polyhedron(dvert, dface);
+    scale(bw / 2 / dfr)
+        polyhedron(dvert, dface);
 }
 
 module dface_rotate() {
