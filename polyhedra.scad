@@ -3,7 +3,7 @@
 // border width
 //bw = 3;
 
-//poly_wire(truncated_octahedron, fill = [0]);
+//poly_wire(truncated(cube), fill = [0]);
 
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
@@ -43,10 +43,15 @@ function sort_face0(vs, f, c, i, r) =
 function sort_face(vs, f) =
     let(c = avg([for (k = f) vs[k]]))
         sort_face0(vs, f, c, 0, [f[0]]);
+    
+function truncation_frac(n) =
+    let(beta = 90 - 180/n)
+        1 / (2 * (1 + sin(beta)));
      
-function truncated(poly, tr = 1/3) =
+function truncated(poly, tr = undef) =
     let(vs = poly[0])
     let(fs = poly[1])
+    let(t0 = is_undef(tr) ? truncation_frac(len(fs[0])) : tr)
     // pair of original vertices
     let(vp = [
         for (f = fs) 
@@ -59,7 +64,7 @@ function truncated(poly, tr = 1/3) =
         for (p = vp) 
             let(a = vs[p[0]])
             let(b = vs[p[1]])
-                a + tr * (b - a)
+                a + t0 * (b - a)
     ])
     // faces from the original faces
     let(tf1 = [
