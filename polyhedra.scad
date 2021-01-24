@@ -3,7 +3,7 @@
 // border width
 //bw = 3;
 
-//poly_wire(octahedron);
+//poly_wire(octahedron, fill = [0]);
 
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
@@ -25,7 +25,7 @@ module face_rotate(poly, fid = 0) {
         [sin(az), cos(az), 0],
         [0, 0, 1],
     ] * c;
-    ay = atan(rz.x / rz.z);
+    ay = -atan(rz.x / rz.z);
     rotate([0, ay, 0]) rotate([0, 0, az])
         children();
 }
@@ -35,16 +35,39 @@ module poly_fill0(poly, bw = bw, fid = 0) {
         polyhedron(poly[0], poly[1]);    
 }
 
-module poly_wire0(poly, sh = sh, bw = bw, fid = 0) {
+module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = []) {
     s = (sh - bw) / 2 / face_dist(poly, fid);
     vs = poly[0];
-    for (f = poly[1]) {
+    fs = poly[1];
+    module rec_hull(v, i) {
+        if (i == 0) {
+            translate(v[0]) poly_fill0(poly, bw, fid);
+        } else {
+            hull() {
+                translate(v[i]) poly_fill0(poly, bw, fid);
+                rec_hull(v, i - 1);
+            }
+        }
+    }
+    for (k = fill) {
+        v = [for (p = fs[k]) vs[p] * s];
+        rec_hull(v, len(v) - 1);    
+    }
+    fill_edges = [
+        for (k = fill) 
+            let(f = fs[k])
+            for (i = [0:len(f) - 1])
+                let(p = f[i])
+                let(q = f[(i + 1) % len(f)])
+                    p < q ? [p, q] : [q, p]
+    ];
+    for (f = fs) {
         n = len(f);
         for (i = [0:n - 1]) {
             j = (i + 1) % n;
             p = f[i];
             q = f[j];
-            if (p < q) {
+            if (p < q && search([[p, q]], fill_edges) == [[]]) {
                 hull() {
                     translate(vs[p] * s) poly_fill0(poly, bw, fid);
                     translate(vs[q] * s) poly_fill0(poly, bw, fid);
@@ -54,10 +77,10 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0) {
     }        
 }
 
-module poly_wire(poly, sh = sh, bw = bw, fid = 0) {
+module poly_wire(poly, sh = sh, bw = bw, fid = 0, fill = []) {
     translate([0, 0, sh / 2])
         face_rotate(poly, fid)
-            poly_wire0(poly, sh, bw, fid);
+            poly_wire0(poly, sh, bw, fid, fill);
 }
 
 // --------------------- Platonic Solids ---------------------
