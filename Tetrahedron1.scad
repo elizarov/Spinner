@@ -5,4 +5,4 @@ bw = 3;
 
 include <polyhedra.scad>;
 
-poly_wire(dodecahedron);
+poly_wire(tetrahedron);
