@@ -242,7 +242,7 @@ module validate(poly) {
     }
 }
 
-// --------------------- Platonic Solids ---------------------
+// --------------------- 5 Platonic Solids ---------------------
 
 phi = (sqrt(5) + 1) / 2;
 
@@ -366,11 +366,18 @@ icosahedron = [[
     [9, 10, 11]
 ]];
 
-// --------------------- Arhimedian Solids ---------------------
+// --------------------- 13 Arhimedian Solids ---------------------
 
 truncated_tetrahedron = truncated(tetrahedron);
 cuboctahedron = rectified(cube);
 truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
+// rhombicuboctahedron
+// truncated_cuboctahedron
+// snub_cube
 icosidodecahedron = rectified(dodecahedron);
-
+// truncated_dodecahedron
+// truncated_icosahedron
+// rhombicosidodecahedron
+// truncated_icosidodecahedron
+// snub_dodecahedron
