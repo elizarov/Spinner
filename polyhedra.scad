@@ -3,7 +3,7 @@
 // border width
 //bw = 3;
 
-//poly_wire(truncated(cube), fill = [0]);
+//poly_wire(rectified(dodecahedron), fill = [0]);
 
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
@@ -86,6 +86,47 @@ function truncated(poly, tr = undef) =
             ])
     ])
         [tvs, concat(tf1, tf2)];
+
+function find_vpr(vp, u, v) =
+    u < v ? find_vp(vp, u, v) : find_vp(vp, v, u);
+
+function rectified(poly) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    // pair of original vertices
+    let(vp = [
+        for (f = fs) 
+            for (i = [0:len(f) - 1])
+                let(j = (i + 1) % len(f))
+                    if (f[i] < f[j])
+                        [f[i], f[j]]
+    ])
+    // truncated vertices coords
+    let(rvs = [
+        for (p = vp) 
+            let(a = vs[p[0]])
+            let(b = vs[p[1]])
+                (a + b) / 2
+    ])
+    // faces from the original faces
+    let(rf1 = [
+        for (f = fs) [
+            for (i = [0:len(f) - 1])
+                let(j = (i + 1) % len(f))
+                    find_vpr(vp, f[i], f[j])
+        ]
+    ]) 
+    // faces from the original vertices
+    let(rf2 = [
+        for (i = [0:len(vs) - 1]) 
+            sort_face(rvs, [
+                for (f = fs) 
+                    for (j = [0:len(f) - 1])
+                        if (f[j] == i)
+                            find_vpr(vp, i, f[(j + 1) % len(f)])
+            ])
+    ])
+        [rvs, concat(rf1, rf2)];
     
 module face_rotate(poly, fid = 0) {
     c = face_center(poly, fid);
@@ -280,4 +321,5 @@ icosahedron = [[
 // --------------------- Arhimedian Solids ---------------------
 
 truncated_octahedron = truncated(octahedron);
+icosidodecahedron = rectified(dodecahedron);
 
