@@ -5,6 +5,10 @@
 
 //poly_wire(rectified(dodecahedron), fill = [0]);
 
+
+// rendering eps to workaround OpenSCAD precision problems
+r_eps = 0.5;
+
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
@@ -171,10 +175,6 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
         }
     }
     fill_all = concat(fill, filter_face_ids(fs, fill_reg));
-    for (k = fill_all) {
-        v = [for (p = fs[k]) vs[p] * s];
-        rec_hull(v, len(v) - 1);    
-    }
     fill_edges = [
         for (k = fill_all) 
             let(f = fs[k])
@@ -183,6 +183,18 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
                 let(q = f[(i + 1) % len(f)])
                     p < q ? [p, q] : [q, p]
     ];
+    fill_verts = [
+        for (k = fill_all) 
+            let(f = fs[k])
+            for (p = f)
+                p
+    ];
+    // filled faces
+    for (k = fill_all) {
+        v = [for (p = fs[k]) vs[p] * s];
+        rec_hull(v, len(v) - 1);    
+    }
+    // edges
     for (f = fs) {
         n = len(f);
         for (i = [0:n - 1]) {
@@ -190,19 +202,44 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
             p = f[i];
             q = f[j];
             if (p < q && search([[p, q]], fill_edges) == [[]]) {
+                p0 = vs[p] * s; 
+                q0 = vs[q] * s;  
+                pq = vnorm(q0 - p0) * r_eps;
+                p1 = p0 + pq;
+                q1 = q0 - pq; 
                 hull() {
-                    translate(vs[p] * s) poly_fill0(poly, bw, fid);
-                    translate(vs[q] * s) poly_fill0(poly, bw, fid);
+                    translate(p1) poly_fill0(poly, bw, fid);
+                    translate(q1) poly_fill0(poly, bw, fid);
                 }                
             }
         }
-    }        
+    }   
+    // vertices
+    for (i = [0:len(vs) - 1]) {
+        if (search(i, fill_verts) == []) {
+            p0 = vs[i] * s;
+            translate(p0) poly_fill0(poly, bw, fid); 
+        }
+    }
 }
 
 module poly_wire(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
+    validate(poly);
     translate([0, 0, sh / 2])
         face_rotate(poly, fid)
             poly_wire0(poly, sh, bw, fid, fill, fill_reg);
+}
+
+module validate(poly) {
+    vs = poly[0];
+    fs = poly[1];
+    echo("# Vertices:", len(vs));
+    echo("# Faces:", len(fs));
+    for (i = [0:len(fs) - 1]) {
+        f = fs[i];
+        if (sort_face(vs, f) != f) 
+            echo("!!! Misordered face #", i, f);
+    }
 }
 
 // --------------------- Platonic Solids ---------------------
