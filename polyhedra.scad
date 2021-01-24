@@ -369,6 +369,8 @@ icosahedron = [[
 // --------------------- Arhimedian Solids ---------------------
 
 truncated_tetrahedron = truncated(tetrahedron);
+cuboctahedron = rectified(cube);
+truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
 icosidodecahedron = rectified(dodecahedron);
-cuboctahedron = rectified(cube);
+
