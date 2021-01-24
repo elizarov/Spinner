@@ -382,8 +382,8 @@ truncated_octahedron = truncated(octahedron);
 // truncated_cuboctahedron
 // snub_cube
 icosidodecahedron = rectified(dodecahedron);
-// truncated_dodecahedron
-// truncated_icosahedron
+truncated_dodecahedron = truncated(dodecahedron);
+truncated_icosahedron = truncated(icosahedron);
 // rhombicosidodecahedron
 // truncated_icosidodecahedron
 // snub_dodecahedron
