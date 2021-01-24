@@ -333,4 +333,4 @@ icosahedron = [[
 
 truncated_octahedron = truncated(octahedron);
 icosidodecahedron = rectified(dodecahedron);
-
+cuboctahedron = rectified(cube);
