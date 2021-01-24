@@ -3,7 +3,7 @@
 // border width
 //bw = 3;
 
-//poly_wire(octahedron, fill = [0]);
+//poly_wire(truncated_octahedron, fill = [0]);
 
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
@@ -16,6 +16,71 @@ function face_center(poly, fid = 0) =
     
 function face_dist(poly, fid = 0) =
     norm(face_center(poly, fid));        
+    
+function find_vp(vp, u, v) = 
+    search([[u, v]], vp)[0];    
+    
+function vnorm(v) = v / norm(v);    
+          
+function next_sorted_face(vs, f, c, u) =
+    let(a = vnorm(vs[u] - c))
+    let(m = [
+        for (v = f) 
+            v == u ? -3 :
+            let(b = vnorm(vs[v] - c))
+                cross(a, b) * c >= 0 ? -2 :
+                    a * b
+    ]) 
+    let(mm = max(m))
+        f[search(mm, m)[0]];
+        
+function sort_face0(vs, f, c, i, r) =
+    i == len(f) - 1 ? r : 
+        sort_face0(vs, f, c, i + 1, 
+            concat(r, [next_sorted_face(vs, f, c, r[i])])
+        );
+    
+function sort_face(vs, f) =
+    let(c = avg([for (k = f) vs[k]]))
+        sort_face0(vs, f, c, 0, [f[0]]);
+     
+function truncated(poly, tr = 1/3) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    // pair of original vertices
+    let(vp = [
+        for (f = fs) 
+            for (i = [0:len(f) - 1])
+                let(j = (i + 1) % len(f))
+                    [f[i], f[j]]
+    ])
+    // truncated vertices coords
+    let(tvs = [
+        for (p = vp) 
+            let(a = vs[p[0]])
+            let(b = vs[p[1]])
+                a + tr * (b - a)
+    ])
+    // faces from the original faces
+    let(tf1 = [
+        for (f = fs) [
+            for (t = [0:2 * len(f) - 1])
+                let(i = t / 2)
+                let(j = (i + 1) % len(f))
+                    t % 2 == 0 ? find_vp(vp, f[i], f[j]) : find_vp(vp, f[j], f[i])
+        ]
+    ]) 
+    // faces from the original vertices
+    let(tf2 = [
+        for (i = [0:len(vs) - 1]) 
+            sort_face(tvs, [
+                for (f = fs) 
+                    for (j = [0:len(f) - 1])
+                        if (f[j] == i)
+                            find_vp(vp, i, f[(j + 1) % len(f)])
+            ])
+    ])
+        [tvs, concat(tf1, tf2)];
     
 module face_rotate(poly, fid = 0) {
     c = face_center(poly, fid);
@@ -206,3 +271,8 @@ icosahedron = [[
     [8, 11, 10],
     [9, 10, 11]
 ]];
+
+// --------------------- Arhimedian Solids ---------------------
+
+truncated_octahedron = truncated(octahedron);
+
