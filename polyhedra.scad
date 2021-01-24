@@ -17,6 +17,14 @@ function face_center(poly, fid = 0) =
 function face_dist(poly, fid = 0) =
     norm(face_center(poly, fid));        
     
+function filter_face_ids(fs, fill_reg) = 
+    [
+        for(k = fill_reg)
+            for (i = [0:len(fs) - 1]) 
+                if (len(fs[i]) == k)
+                    i
+    ];
+    
 function find_vp(vp, u, v) = 
     search([[u, v]], vp)[0];    
     
@@ -146,7 +154,9 @@ module poly_fill0(poly, bw = bw, fid = 0) {
         polyhedron(poly[0], poly[1]);    
 }
 
-module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = []) {
+// fill - a list of face ids to fill
+// fill_reg - a list of face sizes to fill
+module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
     s = (sh - bw) / 2 / face_dist(poly, fid);
     vs = poly[0];
     fs = poly[1];
@@ -160,12 +170,13 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = []) {
             }
         }
     }
-    for (k = fill) {
+    fill_all = concat(fill, filter_face_ids(fs, fill_reg));
+    for (k = fill_all) {
         v = [for (p = fs[k]) vs[p] * s];
         rec_hull(v, len(v) - 1);    
     }
     fill_edges = [
-        for (k = fill) 
+        for (k = fill_all) 
             let(f = fs[k])
             for (i = [0:len(f) - 1])
                 let(p = f[i])
@@ -188,10 +199,10 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = []) {
     }        
 }
 
-module poly_wire(poly, sh = sh, bw = bw, fid = 0, fill = []) {
+module poly_wire(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
     translate([0, 0, sh / 2])
         face_rotate(poly, fid)
-            poly_wire0(poly, sh, bw, fid, fill);
+            poly_wire0(poly, sh, bw, fid, fill, fill_reg);
 }
 
 // --------------------- Platonic Solids ---------------------
