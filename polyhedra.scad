@@ -5,10 +5,6 @@
 
 //poly_wire(rectified(dodecahedron), fill = [0]);
 
-
-// rendering eps to workaround OpenSCAD precision problems
-r_eps = 0.5;
-
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
@@ -160,7 +156,11 @@ module poly_fill0(poly, bw = bw, fid = 0) {
 
 // fill - a list of face ids to fill
 // fill_reg - a list of face sizes to fill
-module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
+module poly_wire0(
+    poly, sh = sh, bw = bw, fid = 0, 
+    fill = [], fill_reg = [],
+    eps = 0
+) {
     s = (sh - bw) / 2 / face_dist(poly, fid);
     vs = poly[0];
     fs = poly[1];
@@ -204,7 +204,7 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
             if (p < q && search([[p, q]], fill_edges) == [[]]) {
                 p0 = vs[p] * s; 
                 q0 = vs[q] * s;  
-                pq = vnorm(q0 - p0) * r_eps;
+                pq = vnorm(q0 - p0) * eps;
                 p1 = p0 + pq;
                 q1 = q0 - pq; 
                 hull() {
@@ -215,19 +215,25 @@ module poly_wire0(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
         }
     }   
     // vertices
-    for (i = [0:len(vs) - 1]) {
-        if (search(i, fill_verts) == []) {
-            p0 = vs[i] * s;
-            translate(p0) poly_fill0(poly, bw, fid); 
+    if (eps != 0) {
+        for (i = [0:len(vs) - 1]) {
+            if (search(i, fill_verts) == []) {
+                p0 = vs[i] * s;
+                translate(p0) poly_fill0(poly, bw, fid); 
+            }
         }
     }
 }
 
-module poly_wire(poly, sh = sh, bw = bw, fid = 0, fill = [], fill_reg = []) {
+module poly_wire(
+    poly, sh = sh, bw = bw, fid = 0, 
+    fill = [], fill_reg = [], 
+    eps = 0
+) {
     validate(poly);
     translate([0, 0, sh / 2])
         face_rotate(poly, fid)
-            poly_wire0(poly, sh, bw, fid, fill, fill_reg);
+            poly_wire0(poly, sh, bw, fid, fill, fill_reg, eps);
 }
 
 module validate(poly) {
