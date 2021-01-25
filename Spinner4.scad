@@ -4,7 +4,7 @@ $fs = $preview ? 0.5 : 0.2;
 $fa = $preview ? 10 : 2;
 
 // angle
-a = 40; // [0:90]
+a = 35; // [0:90]
 // spinner height
 sh = 30;
 // base width
@@ -13,19 +13,19 @@ bw = 10;
 // spinner shell width
 sw = 6;
 // spinner shell length
-sl = 21;
+sl = 20;
 
 // vertical connector width
 vw = 3; 
 // verical connector inner radium
-vr = 13; 
+vr = 11; 
 
 ch = vw / (2 + sqrt(2)); // chamfer for vertical connectors
 
 // support pillar radius
-spr = 16;
+spr = 15;
 // support pillar height
-sph = 13;
+sph = 14;
 
 // number of pellets
 n = 2;
@@ -79,7 +79,10 @@ module vc() {
         ];
         p1 = [vr - vw / 2, - vl / 2, vw / 2];
         p2 = [vr - vw / 2, + vl / 2, vw / 2];
-        connect(rm, p1, p2);
+        hull() {
+            connect(rm, p1, p2);
+            translate([0, 0, vw / 2]) connect0();
+        }
         if (i % k == 0 || i % k == k - 1) 
                 diagonal_connect(rm, b, i % k == 0 ? 1 : -1);
     }
