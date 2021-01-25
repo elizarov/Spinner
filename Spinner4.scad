@@ -16,9 +16,9 @@ sw = 6;
 sl = 21;
 
 // vertical connector width
-vw = 3.5; 
+vw = 3; 
 // verical connector inner radium
-vr = 12; 
+vr = 13; 
 
 ch = vw / (2 + sqrt(2)); // chamfer for vertical connectors
 
@@ -56,9 +56,6 @@ intersection() {
     }
 }
 
-vc();
-
-
 module shell() {
     for (i = [0:n-1])
         rotate([0, 0, i * 360 / n])
@@ -71,64 +68,45 @@ module shell() {
 
 
 module vc() {
-    vl = 2 * (vr + vw / 2) * tan(180 / k / n);
+    vl = 2 * (vr - vw / 2) * tan(180 / k / n);
     b = 360 / k / n;
-    for (i = [0:k * n - 1])
-        rotate([0, 0, (i + 0.5) * 360 / k / n]) {
-            intersection() {
-                translate([vr - vw / 2, - vl / 2, 0])
-                    chamfer_cube_2([vw, vl, vw]);
-                sector(b, vr + vw, sh);
-            }
-            if (i % k == 0 || i % k == k - 1) 
-                connection(b, i % k == 0 ? 1 : -1);
-        }
+    for (i = [0:k * n - 1]) {
+        az = (i + 0.5) * 360 / k / n;
+        rm = [
+            [cos(az), -sin(az), 0],
+            [sin(az), cos(az), 0],
+            [0, 0, 1]
+        ];
+        p1 = [vr - vw / 2, - vl / 2, vw / 2];
+        p2 = [vr - vw / 2, + vl / 2, vw / 2];
+        connect(rm, p1, p2);
+        if (i % k == 0 || i % k == k - 1) 
+                diagonal_connect(rm, b, i % k == 0 ? 1 : -1);
+    }
 }
 
-function vnorm(v) = v / norm(v);
-
-function rotate_matrix(a0, b0) = 
-    let(
-        a = vnorm(a0),
-        b = vnorm(b0),
-        v = cross(a, b),
-        s = norm(v),
-        c = a * b,
-        vm = [
-            [0, -v.z, v.y],
-            [v.z, 0, -v.x],
-            [-v.y, v.x, 0]
-        ],
-        im = [
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1]
-        ],
-        rm = im + vm + vm * vm * ((1 - c) / (s * s))
-    )
-        [concat(rm.x, 0), concat(rm.y, 0), concat(rm.z, 0)];
-
-module connection(b, d) {
+module diagonal_connect(rm, b, d) {
     x1 = spr;
     y1 = x1 * tan(b / 2);
     z1 = sph;
-    x2 = vr;
+    x2 = vr - vw / 2;
     y2 = x2 * tan(b / 2);
     z2 = vw / 2;
     p1 = [x1, -d * y1, z1];
     p2 = [x2, d * y2, z2];
-    cl = norm(p1 - p2);
-    translate(p1)
-        multmatrix(rotate_matrix([0, 1, 0], p2 - p1))
-            translate([-vw / 2, 0, -vw / 2])
-                chamfer_cube_2([vw, cl, vw]);
+    connect(rm, p1, p2);
 }
 
-module sector(b, r, h) {
-    y = r * tan(b / 2);
-    linear_extrude(h) {
-        polygon([[0, 0], [r, y], [r, -y]]);
-    }
+module connect(rm, p1, p2) {
+    hull() {
+        translate(rm * p1) connect0();
+        translate(rm * p2) connect0();
+    }  
+}
+
+module connect0() {
+    translate([-vw / 2, -vw / 2, -vw / 2])
+        chamfer_cube([vw, vw, vw]);
 }
 
 module spinner(dr = 0, eps = 0) {
@@ -169,25 +147,7 @@ module chamfer_cube(s, ch = ch) {
     }
 }
 
-module chamfer_cube_2(s, ch = ch) {
-    difference() {
-        cube(s);
-        chamfer_cube_bottom_2(s, ch);
-        translate([0, s.y, s.z])
-            rotate([180, 0, 0]) chamfer_cube_bottom_2(s, ch);
-    }
-}
-
-module chamfer_cube_bottom_2(s, ch) {
-    translate([s.x, 0, 0])
-        rotate([0, 0, 90]) chamfer(s.y, ch);
-    translate([0, s.y, 0])
-        rotate([0, 0, -90]) chamfer(s.y, ch);
-}
-
-
 module chamfer_cube_bottom(s, ch) {
-    chamfer_cube_bottom_2(s, ch);
     chamfer(s.x, ch);
     translate([s.x, s.y, 0])
         rotate([0, 0, 180]) chamfer(s.x, ch);
@@ -195,5 +155,9 @@ module chamfer_cube_bottom(s, ch) {
         rotate([0, 90, 0]) chamfer(s.z, ch);
     translate([s.x, 0, 0])
         rotate([0, -90, 0]) chamfer(s.z, ch);
+    translate([s.x, 0, 0])
+        rotate([0, 0, 90]) chamfer(s.y, ch);
+    translate([0, s.y, 0])
+        rotate([0, 0, -90]) chamfer(s.y, ch);
 }
 
