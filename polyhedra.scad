@@ -5,7 +5,7 @@
 // connector width
 //cw = 1.5;
 
-//poly_wire(dodecahedron);
+//poly_wire(rhombic_triacontahedron);
 //poly_wire(cube);
 
 // comparison epsilon
@@ -14,6 +14,56 @@ c_eps = 1e-6;
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
+function vnorm(v) = v / norm(v);    
+
+function approx_contains(v, a) =
+    let(m = [for (x = v) if (abs(x - a) < c_eps) 1])
+        m != [];
+
+function distinct(v, i = 0, r = []) =
+    i == len(v) ? r :
+        let(a = v[i])
+            approx_contains(r, a) ? 
+                distinct(v, i + 1, r) :
+                distinct(v, i + 1, concat(r, [a]));
+
+function face_equations(poly) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    [for(f = fs) 
+        let(a = vs[f[0]])
+        let(b = vs[f[1]])
+        let(c = vs[f[2]])
+        let(v1 = b - a)
+        let(v2 = c - a)
+        let(n = vnorm(cross(v1, v2)))
+        [n.x, n.y, n.z, n * a]
+    ];
+    
+function inradius(poly, face_equations = undef) =
+    let(fe = is_undef(face_equations) ? face_equations(poly) : face_equations)
+    distinct([
+        for (e = fe)
+            abs(e[3])
+    ]);
+    
+function midradius(poly) = 
+    let(vs = poly[0])
+    let(fs = poly[1])
+    distinct([
+        for (f = fs)
+            for (i = [0:len(f) - 1])
+                let(j = (i + 1) % len(f))
+                    norm((vs[f[i]] + vs[f[j]]) / 2)
+    ]);
+            
+            
+function circumradius(poly) = 
+    let(vs = poly[0])
+    distinct([
+        for (v = vs) 
+            norm(v)
+    ]);    
 
 function face_center(poly, fid = 0) =
     let(vs = poly[0])
@@ -32,7 +82,7 @@ function diameter(poly, fid = 0) =
     ff == [] ? 2 * norm(c) :
         // yes -- diameter face to this vertex
         norm(c - ff[0]);
-    
+   
 function filter_face_ids(fs, fill_reg) = 
     [
         for(k = fill_reg)
@@ -44,8 +94,6 @@ function filter_face_ids(fs, fill_reg) =
 function find_vp(vp, u, v) = 
     search([[u, v]], vp)[0];    
     
-function vnorm(v) = v / norm(v);    
-          
 function next_sorted_face(vs, f, c, u) =
     let(a = vnorm(vs[u] - c))
     let(m = [
@@ -68,23 +116,18 @@ function sort_face(vs, f) =
     let(c = avg([for (k = f) vs[k]]))
         sort_face0(vs, f, c, 0, [f[0]]);
  
-// project all vertices onto a unit sphere
-function normalized(poly) =   
-    let(vs = poly[0])
-    let(fs = poly[1])
-    let(nvs = [
-        for (p = vs) 
-            vnorm(p)
-    ])
-        [nvs, fs];
-    
-function dual(poly) =
+function dual(poly, face_equations = undef) =
+    let(fe = is_undef(face_equations) ? face_equations(poly) : face_equations)
+    let(mrs = midradius(poly))
+    assert(len(mrs) == 1, ["Does not have a unique midradius", mrs])
+    let(mr = mrs[0])    
     let(vs = poly[0])
     let(fs = poly[1])
     // dual vertices coords
     let(dvs = [
-        for (f = fs) 
-            avg([for(u = f) vs[u]])
+        for (e = fe) 
+            let(s = mr * mr / e[3]) 
+                [e.x * s, e.y * s, e.z * s]
     ])
     // dual faces
     let(dfs = [
@@ -337,12 +380,27 @@ module poly_wire_dual(
 module validate(poly) {
     vs = poly[0];
     fs = poly[1];
-    echo("# Vertices:", len(vs));
-    echo("# Faces:", len(fs));
+    echo("# Vertices:", N = len(vs));
+    echo("# Faces:", N = len(fs));
+    fe = face_equations(poly);
+    inradius = inradius(poly, fe);
+    midradius = midradius(poly);
+    circumradius = circumradius(poly);
+    echo(inradius = inradius);
+    echo(midradius = midradius);
+    echo(circumradius = circumradius);
     for (i = [0:len(fs) - 1]) {
         f = fs[i];
-        if (sort_face(vs, f) != f) 
-            echo("!!! Misordered face #", i, f);
+        e = fe[i];
+        c = avg([for (u = f) vs[u]]); // face center
+        for (j = [0:len(f) - 1]) {
+            p = vs[f[j]];
+            dist = abs(concat(p, [-1]) * e);
+            assert(dist < c_eps, ["Face is not planar #", i, f, c]);
+            q = vs[f[(j + 1) % len(f)]];
+            dir = concat(cross(vnorm(q - c), vnorm(p - c)), [0]) * e;
+            assert(dir < c_eps, ["Face is not clockwise #", i, f, c]);
+        }
     }
 }
 
@@ -485,3 +543,7 @@ truncated_icosahedron = truncated(icosahedron);
 // rhombicosidodecahedron
 // truncated_icosidodecahedron
 // snub_dodecahedron
+
+// --------------------- Arhimedian Duals ---------------------
+
+rhombic_triacontahedron = dual(icosidodecahedron);
