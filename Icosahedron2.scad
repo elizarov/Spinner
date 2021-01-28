@@ -1,7 +1,7 @@
 // shape height
 sh = 30;
 // border width
-bw = 3;
+bw = 5;
 
 include <polyhedra.scad>;
 
@@ -14,8 +14,10 @@ iface = icosahedron[1];
 
 ifr = face_dist(icosahedron);
 
+ipd = diameter(icosahedron);
+
 module icosahedron0() {
-    poly_fill0(icosahedron);
+    poly_fill0(icosahedron, ipd, bw);
 }
 
 module icosahedron2() {

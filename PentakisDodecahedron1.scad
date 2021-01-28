@@ -1,10 +1,8 @@
 // shape height
-sh = 40;
+sh = 30;
 // border width
 bw = 3;
-// connector width
-cw = 2;
 
 include <polyhedra.scad>;
 
-poly_wire_dual(dodecahedron);
+poly_wire(pentakis_dodecahedron);
