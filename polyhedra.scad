@@ -5,11 +5,8 @@
 // connector width
 //cw = 1.5;
 
+//poly_fill(truncated(icosidodecahedron));
 //poly_wire(tetrahedron);
-//poly_wire(cube);
-//poly_wire(octahedron);
-//poly_wire(dodecahedron);
-//poly_wire(icosahedron);
 //poly_wire_dual(cube);
 
 // comparison epsilon
@@ -20,10 +17,17 @@ function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
 function vnorm(v) = v / norm(v);    
 
+function sorted(a) = len(a) == 0 ? [] : 
+    let(pivot   = a[floor(len(a) / 2)])
+    let(lesser  = [for (y = a) if (y  < pivot) y])
+    let(equal   = [for (y = a) if (y == pivot) y])
+    let(greater = [for (y = a) if (y  > pivot) y])
+    concat(sorted(lesser), equal, sorted(greater));    
+
 function approx_contains(v, a) =
     let(m = [for (x = v) if (abs(x - a) < c_eps) 1])
         m != [];
-
+       
 function distinct(v, i = 0, r = []) =
     i == len(v) ? r :
         let(a = v[i])
@@ -64,14 +68,31 @@ function midradius(poly) =
                     norm((vs[f[i]] + vs[f[j]]) / 2)
     ]);
             
-            
 function circumradius(poly) = 
     let(vs = poly[0])
     distinct([
         for (v = vs) 
             norm(v)
-    ]);    
-
+    ]); 
+     
+function is_adjacent_face(f1, f2) = 
+    len([for(u = f1) for(v = f2) if (u == v) 1]) == 2;
+        
+function dihedral_angle(poly) = 
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(fe = face_equations(poly))
+    distinct([
+        for(k = [0:len(fs) - 2])
+            let(f1 = fs[k])
+            let(e1 = fe[k])
+            for(t = [k + 1:len(fs) - 1])
+                let(f2 = fs[t])
+                if (is_adjacent_face(f1, f2))
+                    let(e2 = fe[t])
+                        180 - acos(e1.x * e2.x + e1.y * e2.y + e1.z * e2.z)
+    ]);
+        
 function face_center(poly, fid = 0) =
     let(eq = face_equation(poly, fid))
     let(d = eq[3])
@@ -99,9 +120,6 @@ function filter_face_ids(poly, fill_reg) =
                     i
     ];
     
-function find_vp(vp, u, v) = 
-    search([[u, v]], vp)[0];    
-    
 function next_sorted_face(vs, f, c, u) =
     let(a = vnorm(vs[u] - c))
     let(m = [
@@ -123,11 +141,12 @@ function sort_face0(vs, f, c, i, r) =
 function sort_face(vs, f) =
     let(c = avg([for (k = f) vs[k]]))
         sort_face0(vs, f, c, 0, [f[0]]);
+    
+// ------------------- Dual -------------------
  
 function dual(poly, face_equations = undef) =
     let(fe = is_undef(face_equations) ? face_equations(poly) : face_equations)
     let(mrs = midradius(poly))
-    assert(len(mrs) == 1, ["Does not have a unique midradius", mrs])
     let(mr = mrs[0])    
     let(vs = poly[0])
     let(fs = poly[1])
@@ -147,7 +166,13 @@ function dual(poly, face_equations = undef) =
             ])
     ])
         [dvs, dfs];
-    
+                    
+// ------------------- Truncation -------------------                    
+                    
+function find_vp(vp, u, v) = 
+    search([[u, v]], vp)[0];    
+
+// makes regular faces remain regular    
 function truncation_frac(n) =
     let(beta = 90 - 180/n)
         1 / (2 * (1 + sin(beta)));
@@ -191,6 +216,8 @@ function truncated(poly, tr = undef) =
     ])
         [tvs, concat(tf1, tf2)];
 
+// ------------------- Rectification -------------------
+                        
 function find_vpr(vp, u, v) =
     u < v ? find_vp(vp, u, v) : find_vp(vp, v, u);
 
@@ -231,6 +258,78 @@ function rectified(poly) =
             ])
     ])
         [rvs, concat(rf1, rf2)];
+
+// ------------------- Cantellation -------------------
+
+// assuming faces were regular, ensures that resulting 4-faces are regular
+function cantellataion_frac(poly) = 
+    let(fs = poly[1])
+    let(n = len(fs[0])) // primary face size (assuming it is regular)                    
+    let(fa = 380 / n)
+    let(da = dihedral_angle(poly)[0]) // angle between primary faces
+        1 / (sin(da / 2) / tan(fa / 2) + 1);
+
+function find_fv(fv, k, v) = 
+    search([[k, v]], fv)[0];    
+
+function cantellated(poly, cf = undef) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(fe = face_equations(poly))
+    let(c0 = is_undef(cf) ? cantellataion_frac(poly) : cf)
+    // new vertex ids -- tuples of original faces and vertices
+    let(fv = [
+        for (k = [0:len(fs) - 1])
+            for (v = fs[k])
+                [k, v]
+    ])
+    // next vertices coords (old face, shifted towards center)
+    let(cvs = [
+        for (k = [0:len(fs) - 1])
+            let (f = fs[k]) 
+            let (eq = fe[k])
+            let(d = eq[3])
+            let(c = [eq.x * d, eq.y * d, eq.z * d]) // projected face center
+            for (v = f) 
+                let(a = vs[v])
+                    a + (c - a) * c0
+    ])
+    // faces from the original faces
+    let(cf1 = [
+        for (k = [0:len(fs) - 1])
+            [for (v = fs[k]) find_fv(fv, k, v)]
+    ]) 
+    // faces from the original vertices
+    let(cf2 = [
+        for (v = [0:len(vs) - 1]) 
+            sort_face(cvs, [
+                for (k = [0:len(fs) - 1])
+                    for (vv = fs[k])
+                        if (vv == v)
+                            find_fv(fv, k, v)
+            ])
+    ])
+    // faces from the original edges
+    let(cf3 = [
+        for (k1 = [0:len(fs) - 1]) 
+            let(f1 = fs[k1])
+            for (i1 = [0:len(f1) - 1])
+                let(u = f1[i1])
+                let(v = f1[(i1 + 1) % len(f1)])
+                if (u < v) 
+                    let(k1u = find_fv(fv, k1, u))
+                    let(k1v = find_fv(fv, k1, v))
+                    for (k2 = [0:len(fs) - 1])
+                        let(f2 = fs[k2])
+                        for (i2 = [0:len(f2) - 1])
+                            if (f2[i2] == v && f2[(i2 + 1) % len(f2)] == u)
+                                let(k2u = find_fv(fv, k2, u))
+                                let(k2v = find_fv(fv, k2, v))
+                                    [k1v, k1u, k2u, k2v]            
+    ])
+        [cvs, concat(cf1, cf2, cf3)];
+
+
     
 module face_rotate(poly, fid = 0) {
     c = face_center(poly, fid);
@@ -243,6 +342,17 @@ module face_rotate(poly, fid = 0) {
     ay = -atan(rz.x / rz.z);
     rotate([0, ay, 0]) rotate([0, 0, az])
         children();
+}
+
+module poly_fill(
+    poly, sh = sh, fid = 0
+) {
+    validate(poly);
+    pd = diameter(poly, fid);
+    translate([0, 0, sh * face_dist(poly, fid) / pd])
+        face_rotate(poly, fid)
+            scale(sh / pd) 
+                polyhedron(poly[0], poly[1]);    
 }
 
 module poly_fill0(
@@ -421,15 +531,25 @@ module poly_wire_dual(
 module validate(poly) {
     vs = poly[0];
     fs = poly[1];
+    face_sizes = distinct([
+        for (f = fs) len(f)
+    ]);
     echo("# Vertices:", N = len(vs));
-    echo("# Faces:", N = len(fs));
+    echo("# Faces:", N = len(fs), face_sizes = face_sizes);
+    if (len(face_sizes) > 1) {
+        for (m = face_sizes) {
+            echo(m, "-faces:", N = len([for (f = fs) if (len(f) == m) 1]));
+        }    
+    }
     fe = face_equations(poly);
     inradius = inradius(poly, fe);
     midradius = midradius(poly);
     circumradius = circumradius(poly);
+    dihedral_angle = dihedral_angle(poly);
     echo(inradius = inradius);
     echo(midradius = midradius);
     echo(circumradius = circumradius);
+    echo(dihedral_angle = dihedral_angle);
     for (i = [0:len(fs) - 1]) {
         f = fs[i];
         e = fe[i];
@@ -575,17 +695,28 @@ truncated_tetrahedron = truncated(tetrahedron);
 cuboctahedron = rectified(cube);
 truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
-// rhombicuboctahedron
-// truncated_cuboctahedron
+rhombicuboctahedron = cantellated(cube);
+// rhombitruncated_cuboctahedron
 // snub_cube
 icosidodecahedron = rectified(dodecahedron);
 truncated_dodecahedron = truncated(dodecahedron);
 truncated_icosahedron = truncated(icosahedron);
-// rhombicosidodecahedron
-// truncated_icosidodecahedron
+rhombicosidodecahedron = cantellated(dodecahedron);
+// rhombitruncated_icosidodecahedron
 // snub_dodecahedron
 
 // --------------------- Arhimedian Duals ---------------------
 
+triakis_tetrahedron = dual(truncated_tetrahedron);
+rhombic_dodecahedron = dual(cuboctahedron);
+triakis_octahedron = dual(truncated_cube);
+tetrakis_hexahedron = dual(truncated_octahedron);
+deltoidal_icositetrahedron = dual(rhombicuboctahedron);
+// disdyakis_dodecahedron = dual(rhombitruncated_cuboctahedron);
+// pentagonal_icositetrahedron = dual(snub_cube);
 rhombic_triacontahedron = dual(icosidodecahedron);
+triakis_icosahedron = dual(truncated_dodecahedron);
 pentakis_dodecahedron = dual(truncated_icosahedron);
+deltoidal_hexecontahedron = dual(rhombicosidodecahedron);
+// disdyakis_triacontahedron = dual(rhombitruncated_icosidodecahedron);
+// pentagonal_hexecontahedron = dual(snub_dodecahedron);
