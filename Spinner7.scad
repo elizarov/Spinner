@@ -39,21 +39,31 @@ x0 = rs * cos(b);
 y0 = rs * sin(b);
 y1 = wa / 2;
 x1 = x0 + (y0 - y1) * tan(b);
-cy = y0 - sqrt((rs - ch) * (rs - ch) - x0 * x0);
+cn = [cos(b), sin(b)];
 
-function arm_slice(x, y, cy) = [
-    [x, y - cy, 0],
+function arm_slice(x, y, cn) = [
+    [x - cn.x, y - cn.y, 0],
     [x, y, ch],
     [x, y, sh - ch],
-    [x, y - cy, sh],
-    [x, -y + cy, sh],
+    [x - cn.x, y - cn.y, sh],
+    [x - cn.x, -y + cn.y, sh],
     [x, -y, sh - ch],
     [x, -y, ch],
-    [x, -y + cy, 0]
+    [x - cn.x, -y + cn.y, 0]
 ];
 
+module arm() {
+    bezier_surface([
+        arm_slice(x0, y0, cn),
+        arm_slice(x1, y1, [0, 1]),
+        arm_slice(ra / 2, y1, [0, 1]),
+        arm_slice(ra - x1, y1, [0, 1]),
+        arm_slice(ra - x0, y0, [-cn.x, cn.y])
+    ]);
+}
+
 difference() {
-    #full_shell();
+    full_shell();
     spinner(g2, eps, 1);
     for (i = [0:n-1])
         rotate([0, 0, 360 * i / n])
@@ -73,13 +83,7 @@ module full_shell() {
         rotate([0, 0, 360 * i / n]) {
             translate([ra, 0, 0]) 
                 shell();
-            bezier_surface([
-                arm_slice(x0, y0, cy),
-                arm_slice(x1, y1, ch),
-                arm_slice(ra / 2, y1, ch),
-                arm_slice(ra - x1, y1, ch),
-                arm_slice(ra - x0, y0, cy)
-            ]);
+            arm();
         }
 }
 
