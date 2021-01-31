@@ -689,7 +689,7 @@ icosahedron = [[
     [9, 10, 11]
 ]];
 
-// --------------------- 13 Arhimedian Solids ---------------------
+// --------------------- 13 Arhimedean Solids ---------------------
 
 truncated_tetrahedron = truncated(tetrahedron);
 cuboctahedron = rectified(cube);
@@ -705,7 +705,7 @@ rhombicosidodecahedron = cantellated(dodecahedron);
 // rhombitruncated_icosidodecahedron
 // snub_dodecahedron
 
-// --------------------- Arhimedian Duals ---------------------
+// --------------------- 13 Catalan Solids (Arhimedean Duals) ---------------------
 
 triakis_tetrahedron = dual(truncated_tetrahedron);
 rhombic_dodecahedron = dual(cuboctahedron);

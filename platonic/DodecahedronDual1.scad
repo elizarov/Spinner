@@ -5,6 +5,6 @@ bw = 3;
 // connector width
 cw = 2;
 
-include <polyhedra.scad>;
+include <../polyhedra.scad>;
 
 poly_wire_dual(dodecahedron);

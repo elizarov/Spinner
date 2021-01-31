@@ -5,10 +5,10 @@ pw = 1.5;
 // wire width
 bw = 3;
 
-include <polyhedra.scad>;
+include <../polyhedra.scad>;
 
-translate([0, 0, sh / 2]) 
-    face_rotate(icosahedron) 
+translate([0, 0, sh / 2])
+    face_rotate(icosahedron)
         icosahedron2();
 
 ivert = icosahedron[0];
@@ -21,7 +21,7 @@ module icosahedron0p() {
 }
 
 module icosahedron2() {
-    ps = (sh - pw) / 2 / ifr;    
+    ps = (sh - pw) / 2 / ifr;
     module h4(a, b, c, d) {
         hull() {
             translate(ivert[a] * ps) icosahedron0p();

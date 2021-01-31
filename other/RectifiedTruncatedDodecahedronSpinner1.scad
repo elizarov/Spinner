@@ -12,16 +12,16 @@ sw = 3.5;
 // gap between moving parts
 gap = 0.5;
 // overlap for clean differences and unions
-eps = 0.1; 
+eps = 0.1;
 
 g2 = gap / cos(a);
 
-include <polyhedra.scad>;
+include <../polyhedra.scad>;
 
 spinner();
 
 difference() {
-    poly_wire(truncated(truncated_octahedron), sh, sw, fill_reg = [3]);
+    poly_wire(rectified(truncated_dodecahedron), sh, sw, fill_reg = [3]);
     spinner(g2, eps);
 }
 
@@ -34,4 +34,3 @@ module spinner(dr = 0, eps = 0) {
             cylinder(d1 = d + sh * tan(a), d2 = d + 2 * eps, h = sh / 2 + eps);
     }
 }
-

@@ -3,10 +3,10 @@ sh = 30;
 // border width
 bw = 5;
 
-include <polyhedra.scad>;
+include <../polyhedra.scad>;
 
-translate([0, 0, sh / 2]) 
-    face_rotate(icosahedron) 
+translate([0, 0, sh / 2])
+    face_rotate(icosahedron)
         icosahedron2();
 
 ivert = icosahedron[0];
