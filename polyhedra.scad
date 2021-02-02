@@ -5,7 +5,7 @@
 // connector width
 //cw = 1.5;
 
-//poly_fill(truncated(icosidodecahedron));
+//poly_fill(disdyakis_triacontahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
 
@@ -175,13 +175,17 @@ function find_vp(vp, u, v) =
 // makes regular faces remain regular    
 function truncation_frac(n) =
     let(beta = 90 - 180/n)
-        1 / (2 * (1 + sin(beta)));
+        1 / (1 + sin(beta));
      
-function truncated(poly, tr = undef) =
+// tf -- truncation fraction from 0 to 1                    
+//       0 - no truncation
+//       1 - full truncation (rectification)                    
+function truncated(poly, tf = undef) =
+    tf <= 0 ? poly : tf >= 1 ? rectified(poly) :                    
     let(vs = poly[0])
     let(fs = poly[1])
-    let(t0 = is_undef(tr) ? truncation_frac(len(fs[0])) : tr)
-    // pair of original vertices
+    let(t0 = is_undef(tf) ? truncation_frac(len(fs[0])) : tf)
+    // pairs of original vertices
     let(vp = [
         for (f = fs) 
             for (i = [0:len(f) - 1])
@@ -193,7 +197,7 @@ function truncated(poly, tr = undef) =
         for (p = vp) 
             let(a = vs[p[0]])
             let(b = vs[p[1]])
-                a + t0 * (b - a)
+                a + t0 * (b - a) / 2
     ])
     // faces from the original faces
     let(tf1 = [
@@ -272,7 +276,11 @@ function cantellataion_frac(poly) =
 function find_fv(fv, k, v) = 
     search([[k, v]], fv)[0];    
 
+// cf -- cantellation fraction from 0 to 1                    
+//       0 - no cantellation
+//       1 - full cantellation (dual)       
 function cantellated(poly, cf = undef) =
+    cf <= 0 ? poly : cf >= 1 ? dual(poly) :
     let(vs = poly[0])
     let(fs = poly[1])
     let(fe = face_equations(poly))
@@ -329,7 +337,106 @@ function cantellated(poly, cf = undef) =
     ])
         [cvs, concat(cf1, cf2, cf3)];
 
+// ------------------- Bevel -------------------
 
+function find_vpf(vpf, u, v, k) = 
+    search([[u, v, k]], vpf)[0];    
+
+function bevel_frac(poly) = 
+    let(fs = poly[1])
+    let(n = len(fs[0])) // primary face size (assuming it is regular)                    
+    let(fa = 380 / n)
+    let(da = dihedral_angle(poly)[0]) // angle between primary faces
+    let(tf = truncation_frac(n))
+    let(cf = (1 - tf) / (sin(da / 2) / tan(fa / 2) + 1 - tf))
+        [cf, tf];
+
+// bf -- pair [cf, tf]
+//       cf - cantellation fraction from 0 to 1                    
+//       tf - truncation fraction from 0 to 1
+function beveled(poly, bf = undef) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(fe = face_equations(poly))
+    let(b0 = is_undef(bf) ? bevel_frac(poly) : bf)
+    let(c0 = b0[0])
+    let(t0 = b0[1])
+    // triples - pairs of original vertices both ways, face ids
+    let(vpf = [
+        for (k = [0:len(fs) - 1])
+            let (f = fs[k]) 
+            for (t = [0:2 * len(f) - 1])
+                let(i = t / 2)
+                let(j = (i + 1) % len(f))
+                let(u = t % 2 == 0 ? f[i] : f[j])
+                let(v = t % 2 == 0 ? f[j] : f[i])
+                     [u, v, k]
+    ])
+    // beveled vertices coords
+    let(bvs = [
+        for (k = [0:len(fs) - 1])
+            let (f = fs[k]) 
+            let (eq = fe[k])
+            let(d = eq[3])
+            let(c = [eq.x * d, eq.y * d, eq.z * d]) // projected face center
+            for (t = [0:2 * len(f) - 1])
+                let(i = t / 2)
+                let(j = (i + 1) % len(f))
+                let(u = t % 2 == 0 ? f[i] : f[j])
+                let(v = t % 2 == 0 ? f[j] : f[i])
+                let(a = vs[u])
+                let(b = vs[v])
+                let(ac = a + (c - a) * c0) // cantellated a (shifted towards center)
+                let(bc = b + (c - b) * c0) // cantellated b (shifted towards center)
+                    ac + t0 * (bc - ac) / 2 // [a,b] truncation 
+    ])
+    // faces from the original faces (like in truncation)
+    let(bf1 = [
+        for (k = [0:len(fs) - 1])
+            let (f = fs[k]) 
+            [
+                for (t = [0:2 * len(f) - 1])
+                    let(i = t / 2)
+                    let(j = (i + 1) % len(f))
+                        t % 2 == 0 ? find_vpf(vpf, f[i], f[j], k) : find_vpf(vpf, f[j], f[i], k)
+            ]
+    ]) 
+    // faces from the original vertices
+    let(bf2 = [
+        for (v = [0:len(vs) - 1]) 
+            sort_face(bvs, [
+                for (k = [0:len(fs) - 1])
+                    let(f = fs[k])
+                    for (t = [0:2 * len(f) - 1])
+                        let(i = t / 2)
+                        if (f[i] == v)
+                            let(j = (i + len(f) + (t % 2 == 0 ? -1 : 1)) % len(f))
+                                find_vpf(vpf, v, f[j], k)
+            ])
+    ])
+    // faces from the original edges (like in cantellation)
+    let(bf3 = [
+        for (k1 = [0:len(fs) - 1]) 
+            let(f1 = fs[k1])
+            for (i1 = [0:len(f1) - 1])
+                let(u = f1[i1])
+                let(v = f1[(i1 + 1) % len(f1)])
+                if (u < v) 
+                    let(k1u = find_vpf(vpf, u, v, k1))
+                    let(k1v = find_vpf(vpf, v, u, k1))
+                    for (k2 = [0:len(fs) - 1])
+                        let(f2 = fs[k2])
+                        for (i2 = [0:len(f2) - 1])
+                            if (f2[i2] == v && f2[(i2 + 1) % len(f2)] == u)
+                                let(k2u = find_vpf(vpf, u, v, k2))
+                                let(k2v = find_vpf(vpf, v, u, k2))
+                                    [k1v, k1u, k2u, k2v]            
+    ])
+        [bvs, concat(bf1, bf2, bf3)];
+
+
+
+// ------------------- Drawing -------------------
     
 module face_rotate(poly, fid = 0) {
     c = face_center(poly, fid);
@@ -696,13 +803,13 @@ cuboctahedron = rectified(cube);
 truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
 rhombicuboctahedron = cantellated(cube);
-// rhombitruncated_cuboctahedron
+rhombitruncated_cuboctahedron = beveled(cube);
 // snub_cube
 icosidodecahedron = rectified(dodecahedron);
 truncated_dodecahedron = truncated(dodecahedron);
 truncated_icosahedron = truncated(icosahedron);
 rhombicosidodecahedron = cantellated(dodecahedron);
-// rhombitruncated_icosidodecahedron
+rhombitruncated_icosidodecahedron = beveled(dodecahedron);
 // snub_dodecahedron
 
 // --------------------- 13 Catalan Solids (Arhimedean Duals) ---------------------
@@ -712,11 +819,11 @@ rhombic_dodecahedron = dual(cuboctahedron);
 triakis_octahedron = dual(truncated_cube);
 tetrakis_hexahedron = dual(truncated_octahedron);
 deltoidal_icositetrahedron = dual(rhombicuboctahedron);
-// disdyakis_dodecahedron = dual(rhombitruncated_cuboctahedron);
+disdyakis_dodecahedron = dual(rhombitruncated_cuboctahedron);
 // pentagonal_icositetrahedron = dual(snub_cube);
 rhombic_triacontahedron = dual(icosidodecahedron);
 triakis_icosahedron = dual(truncated_dodecahedron);
 pentakis_dodecahedron = dual(truncated_icosahedron);
 deltoidal_hexecontahedron = dual(rhombicosidodecahedron);
-// disdyakis_triacontahedron = dual(rhombitruncated_icosidodecahedron);
+disdyakis_triacontahedron = dual(rhombitruncated_icosidodecahedron);
 // pentagonal_hexecontahedron = dual(snub_dodecahedron);
