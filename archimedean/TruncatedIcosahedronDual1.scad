@@ -1,7 +1,7 @@
 // shape height
-sh = 40;
+sh = 50;
 // border width
-bw = 2;
+bw = 2.5;
 // dual width
 dw = 1.5;
 
