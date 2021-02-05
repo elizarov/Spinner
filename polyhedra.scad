@@ -1,21 +1,29 @@
 // shape height
-//sh = 30;
+sh = 30;
 // border width
 //bw = 3;
 // connector width
 //cw = 1.5;
 
-//poly_fill(disdyakis_triacontahedron);
+poly_fill(pentagonal_hexecontahedron);
+//poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
 
 // comparison epsilon
-c_eps = 1e-6;
+c_eps = 1e-10;
+
+// snub computation precision
+s_eps = 1e-15;
 
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
 function vnorm(v) = v / norm(v);    
+
+function sqr(x) = x * x;
+
+function flatten(a) = [for(l = a) for(e = l) e];
 
 function sorted(a) = len(a) == 0 ? [] : 
     let(pivot   = a[floor(len(a) / 2)])
@@ -434,6 +442,154 @@ function beveled(poly, bf = undef) =
     ])
         [bvs, concat(bf1, bf2, bf3)];
 
+// ------------------- Snub -------------------
+
+// a * x^2 + b * x + c = 0
+function solve3(a, b, c) = 
+    (-b + sqrt(sqr(b) - 4 * a * c)) / (2 * a);
+
+// solves for snub_compute_a(da, fa, cf, sa) == rf
+function snub_compute_sa(da, fa, cf) =
+    let(rf = 1 - cf)
+    let(cm = (1 - cos(da)) / 2)
+    let(cp = (1 + cos(da)) / 2)
+    let(cos_ga = solve3(cp * sqr(rf), 2 * cm * rf * cos(fa/2), -sqr(cos(fa/2)) * (cm + sqr(rf))))
+        fa/2 - acos(cos_ga);
+
+function snub_compute_a(da, fa, cf, sa) =
+    let(h = 1 / (2 * tan(fa / 2)))
+    let(ga = fa/2 - sa)
+    let(rf = 1 - cf)
+    let(t = rf / (2 * sin(fa/2)))
+    norm([
+        2 * t * sin(ga),
+        (h - t * cos(ga)) * (cos(da) - 1),
+        (h - t * cos(ga)) * sin(da)
+    ]);
+    
+function snub_compute_b(da, fa, cf, sa) =
+    let(h = 1 / (2 * tan(fa/2)))
+    let(ga = fa/2 - sa)
+    let(ha = fa/2 + sa)
+    let(rf = 1 - cf)
+    let(t = rf / (2 * sin(fa/2)))
+    norm([
+        t * (sin(ga) - sin(ha)), 
+        (h - t * cos(ga)) * cos(da) - (h - t * cos(ha)),
+        (h - t * cos(ga)) * sin(da)
+    ]);
+
+function snub_compute_cf(da, fa, cf_l = 0, cf_r = 1) = 
+    let(cf = (cf_l + cf_r) / 2)
+    cf_r - cf_l < s_eps ? cf :
+    let(sa = snub_compute_sa(da, fa, cf))
+    let(rf = 1 - cf)
+    // error goes from postive to negative to NaN as cf goes from 0 to 1                            
+    let(err = snub_compute_b(da, fa, cf, sa) - rf)
+        err <= 0 ? 
+            snub_compute_cf(da, fa, cf, cf_r) : 
+            snub_compute_cf(da, fa, cf_l, cf);    
+
+// assuming faces were regular, ensures that resulting 3-faces are regular
+function snub_frac(poly) = 
+    let(fs = poly[1])
+    let(n = len(fs[0])) // primary face size (assuming it is regular)                    
+    let(fa = 360 / n)
+    let(da = dihedral_angle(poly)[0]) // angle between primary faces
+    let(cf = snub_compute_cf(da, fa))
+    let(sa = snub_compute_sa(da, fa, cf))
+        [cf, sa];
+
+id_mat = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+
+function cross_mat(u) = [
+    [0, -u.z, u.y],
+    [u.z, 0, -u.x],
+    [-u.y, u.x, 0]
+];
+    
+function outer_prod(u, v) =
+    [[u.x], [u.y], [u.z]] * [v];
+
+function rotation_matrix(u, a) =
+    cos(a) * id_mat + sin(a) * cross_mat(u) + (1 - cos(a)) * outer_prod(u, u);
+
+// sf -- [cf, sa]
+//       cf - cantellation fraction
+//       sa - snub angle
+function snubbed(poly, sf = undef) =
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(fe = face_equations(poly))
+    let(s0 = is_undef(sf) ? snub_frac(poly) : sf)
+    let(c0 = s0[0])
+    let(sa = s0[1])
+/* BEGIN debug        
+    let(n = len(fs[0])) // primary face size (assuming it is regular)                    
+    let(fa = 360 / n)
+    let(da = dihedral_angle(poly)[0]) // angle between primary faces
+    let(rf = 1 - c0)
+    echo(
+        "snub: ", cf=c0, sa=sa,
+            err_a = snub_compute_a(da, fa, c0, sa) - rf,
+            err_b = snub_compute_b(da, fa, c0, sa) - rf
+    )
+// END debug */
+    sa == 0 ? cantellated(poly, c0) : 
+    // new vertex ids -- tuples of original faces and vertices
+    let(fv = [
+        for (k = [0:len(fs) - 1])
+            for (v = fs[k])
+                [k, v]
+    ])
+    // next vertices coords (old face, shifted towards center, rotated)
+    let(svs = [
+        for (k = [0:len(fs) - 1])
+            let (f = fs[k]) 
+            let (eq = fe[k])
+            let(d = eq[3])
+            let(c = [eq.x * d, eq.y * d, eq.z * d]) // projected face center
+            let(m = (1 - c0) * rotation_matrix([eq.x, eq.y, eq.z], -sa)) // rotate clockwise!
+            for (v = f) 
+                let(a = vs[v])
+//                    echo("face #", k, a = a, "dist", norm(a - c), "dist_new", norm((a - c) * m))
+                    c + (a - c) * m
+    ])
+    // faces from the original faces
+    let(sf1 = [
+        for (k = [0:len(fs) - 1])
+            [for (v = fs[k]) find_fv(fv, k, v)]
+    ]) 
+    // faces from the original vertices
+    let(sf2 = [
+        for (v = [0:len(vs) - 1]) 
+            sort_face(svs, [
+                for (k = [0:len(fs) - 1])
+                    for (vv = fs[k])
+                        if (vv == v)
+                            find_fv(fv, k, v)
+            ])
+    ])
+    // faces from the original edges
+    let(sf3 = flatten([
+        for (k1 = [0:len(fs) - 1]) 
+            let(f1 = fs[k1])
+            for (i1 = [0:len(f1) - 1])
+                let(u = f1[i1])
+                let(v = f1[(i1 + 1) % len(f1)])
+                if (u < v) 
+                    let(k1u = find_fv(fv, k1, u))
+                    let(k1v = find_fv(fv, k1, v))
+                    for (k2 = [0:len(fs) - 1])
+                        let(f2 = fs[k2])
+                        for (i2 = [0:len(f2) - 1])
+                            if (f2[i2] == v && f2[(i2 + 1) % len(f2)] == u)
+                                let(k2u = find_fv(fv, k2, u))
+                                let(k2v = find_fv(fv, k2, v))
+                                    [ [k1v, k1u, k2v], [k1u, k2u, k2v] ]
+    ]))
+        [svs, concat(sf1, sf2, sf3)];
+
 
 
 // ------------------- Drawing -------------------
@@ -451,15 +607,25 @@ module face_rotate(poly, fid = 0) {
         children();
 }
 
+module poly_place(poly, sh = sh, fid = 0, place = true) {
+    if (place) {
+        pd = diameter(poly, fid);
+        translate([0, 0, sh * face_dist(poly, fid) / pd])
+            face_rotate(poly, fid)
+                scale(sh / pd) 
+                    children();
+    } else {
+        children();
+    }
+}
+
 module poly_fill(
-    poly, sh = sh, fid = 0
+    poly, sh = sh, fid = 0, place = true
 ) {
     validate(poly);
-    pd = diameter(poly, fid);
-    translate([0, 0, sh * face_dist(poly, fid) / pd])
-        face_rotate(poly, fid)
-            scale(sh / pd) 
-                polyhedron(poly[0], poly[1]);    
+    poly_place(poly, sh, fid, place) {
+        polyhedron(poly[0], poly[1]);    
+    }
 }
 
 module poly_fill0(
@@ -641,7 +807,18 @@ module validate(poly) {
     face_sizes = distinct([
         for (f = fs) len(f)
     ]);
+    es = [
+        for (f = fs) 
+            for (i = [0:len(f) - 1])
+                let(j = (i + 1) % len(f))
+                    if (f[i] < f[j])
+                        [f[i], f[j]]
+    ];
+    edge_lengths = distinct([
+        for (e = es) norm(vs[e[0]] - vs[e[1]])
+    ]);
     echo("# Vertices:", N = len(vs));
+    echo("# Edges:", N = len(es), edge_lengths = edge_lengths);
     echo("# Faces:", N = len(fs), face_sizes = face_sizes);
     if (len(face_sizes) > 1) {
         for (m = face_sizes) {
@@ -688,6 +865,7 @@ tetrahedron = [[
     [1, 2, 3]
 ]];
 
+// cube = dual(octahedron);
 cube = [[
     [1, 1, -1], // 0
     [-1, 1, -1], // 1
@@ -706,6 +884,7 @@ cube = [[
     [4, 7, 6, 5]
 ]];
 
+// octahedron = rectified(tetrahedron);
 octahedron = [[
     [0, 0, -1], // 0
     [1, 0, 0], // 1
@@ -724,6 +903,7 @@ octahedron = [[
     [5, 1, 4]
 ]];
 
+// dodecahedron = dual(icosahedron);
 dodecahedron = [[
     [-1/phi, 0, -phi], // 0
     [1/phi, 0, -phi], // 1
@@ -760,6 +940,7 @@ dodecahedron = [[
     [19, 18, 15, 13, 17]
 ]];
 
+// icosahedron = snubbed(tetrahedron);
 icosahedron = [[
     [0, -1, -phi], // 0
     [0, 1, -phi], // 1
@@ -804,13 +985,13 @@ truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
 rhombicuboctahedron = cantellated(cube);
 rhombitruncated_cuboctahedron = beveled(cube);
-// snub_cube
+snub_cube = snubbed(cube);
 icosidodecahedron = rectified(dodecahedron);
 truncated_dodecahedron = truncated(dodecahedron);
 truncated_icosahedron = truncated(icosahedron);
 rhombicosidodecahedron = cantellated(dodecahedron);
 rhombitruncated_icosidodecahedron = beveled(dodecahedron);
-// snub_dodecahedron
+snub_dodecahedron = snubbed(dodecahedron);
 
 // --------------------- 13 Catalan Solids (Arhimedean Duals) ---------------------
 
@@ -820,10 +1001,10 @@ triakis_octahedron = dual(truncated_cube);
 tetrakis_hexahedron = dual(truncated_octahedron);
 deltoidal_icositetrahedron = dual(rhombicuboctahedron);
 disdyakis_dodecahedron = dual(rhombitruncated_cuboctahedron);
-// pentagonal_icositetrahedron = dual(snub_cube);
+pentagonal_icositetrahedron = dual(snub_cube);
 rhombic_triacontahedron = dual(icosidodecahedron);
 triakis_icosahedron = dual(truncated_dodecahedron);
 pentakis_dodecahedron = dual(truncated_icosahedron);
 deltoidal_hexecontahedron = dual(rhombicosidodecahedron);
 disdyakis_triacontahedron = dual(rhombitruncated_icosidodecahedron);
-// pentagonal_hexecontahedron = dual(snub_dodecahedron);
+pentagonal_hexecontahedron = dual(snub_dodecahedron);
