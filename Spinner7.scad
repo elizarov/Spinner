@@ -4,32 +4,43 @@ $fa = $preview ? 10 : 2;
 include <bezier.scad>;
 
 // angle
-a = 30; // [0:90]
+a = 45; // [0:90]
 // spinner height
 sh = 10;
 // neck width
-nw = 4;
-// base shell width
+nw = 6;
+// base width
 bw = nw + sh * sin(a);
+echo("base width", bw = bw);
+
 // spinner shell diameter
-ds = bw + 7;
+ds = bw + 9;
 rs = ds / 2; // radius
 
 // arm radius
-ra = 30; 
+ra = 35; 
 // arm width
-wa = 7;
+wa = 12;
 
 // number of arms
 n = 3;
 
-// cube chamfers
-ch = 1;
+// shell chamfers
+ch = 1.5;
+// spinner chamfers
+sch = 1.5;
+
+echo("real base width", bw - 2 * sch * tan(a));
 
 // gap between moving parts
 gap = 0.5;
 // overlap for clean differences and unions
 eps = 0.1; 
+
+// drilled diameter in the center (for strength)
+dd = 0.6;
+// flat surface height (drill hole below surface)
+fsh = 0.6;
 
 g2 = gap / cos(a);
 
@@ -41,16 +52,18 @@ y1 = wa / 2;
 x1 = x0 + (y0 - y1) * tan(b);
 cn = [cos(b), sin(b)];
 
-function arm_slice(x, y, cn) = [
-    [x - cn.x, y - cn.y, 0],
-    [x, y, ch],
-    [x, y, sh - ch],
-    [x - cn.x, y - cn.y, sh],
-    [x - cn.x, -y + cn.y, sh],
-    [x, -y, sh - ch],
-    [x, -y, ch],
-    [x - cn.x, -y + cn.y, 0]
-];
+function arm_slice(x, y, n) = 
+    let(cn = ch * n)
+        [
+            [x - cn.x, y - cn.y, 0],
+            [x, y, ch],
+            [x, y, sh - ch],
+            [x - cn.x, y - cn.y, sh],
+            [x - cn.x, -y + cn.y, sh],
+            [x, -y, sh - ch],
+            [x, -y, ch],
+            [x - cn.x, -y + cn.y, 0]
+        ];
 
 module arm() {
     bezier_surface([
@@ -64,12 +77,13 @@ module arm() {
 
 difference() {
     full_shell();
-    spinner(g2, eps, 1);
+    spinner0(g2, eps);
     for (i = [0:n-1])
         rotate([0, 0, 360 * i / n])
             translate([ra, 0, 0]) 
-               spinner(g2, eps, 1);
+               spinner0(g2, eps);
 }
+
 
 spinner();
 for (i = [0:n-1])
@@ -99,17 +113,25 @@ module shell() {
         ]);
 }
 
+module spinner() {
+    difference() {
+        spinner0(cy = sch);
+        translate([0, 0, fsh])
+            cylinder(d = dd, h = sh - 2 * fsh);
+    }
+}
 
-module spinner(dr = 0, eps = 0, cdir = -1) {
+module spinner0(dr = 0, eps = 0, cy = 0) {
     ro = bw / 2 + dr;
     rn = nw / 2 + dr;
+    cx = cy * tan(a);
     rotate_extrude() 
         polygon([
-            [ro + cdir * ch, -eps],
-            [ro, ch],
+            [ro - cx, -eps],
+            [ro - cx, cy],
             [rn, sh / 2],
-            [ro, sh - ch],
-            [ro + cdir * ch, sh + eps],
+            [ro - cx, sh - cy],
+            [ro - cx, sh + eps],
             [0, sh + eps],
             [0, -eps],            
         ]);

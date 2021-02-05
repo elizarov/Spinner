@@ -8,7 +8,7 @@ a = 40; // [0:90]
 // spinner height
 sh = 30;
 // neck width
-nw = 6;
+nw = 8;
 // base width
 bw = nw + sh * sin(a);
 
@@ -18,9 +18,7 @@ sw = 4;
 sl = 25;
 
 // neck cylinder width
-ncw = 12;
-// neck cylinder height
-nch = 10;
+ncw = 15;
 
 // number of pellets
 n = 6;
@@ -30,6 +28,11 @@ ch = 1;
 // bottom chamfer displacement
 cb = 3;
 
+// drilled diameter in the center (for strength)
+dd = 0.6;
+// flat surface height (drill hole below surface)
+fsh = 0.6;
+
 // gap between moving parts
 gap = 0.5;
 // overlap for clean differences and unions
@@ -37,7 +40,11 @@ eps = 0.1;
 
 g2 = gap / cos(a);
 
-spinner();
+difference() {
+    spinner();
+    translate([0, 0, fsh])
+        cylinder(d = dd, h = sh - 2 * fsh);
+}
 
 #intersection() {
     difference() {
@@ -48,8 +55,7 @@ spinner();
 
 
 module shell() {
-    translate([0, 0, (sh - nch) / 2])
-        cylinder(d = ncw, h = nch);
+    cylinder(d = ncw, h = sh);
     for (i = [0:n-1])
         rotate([0, 0, i * 360 / n])
             translate([0, -sw / 2, 0])
