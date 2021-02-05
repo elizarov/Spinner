@@ -1,11 +1,11 @@
 // shape height
-sh = 30;
+//sh = 30;
 // border width
 //bw = 3;
 // connector width
 //cw = 1.5;
 
-poly_fill(pentagonal_hexecontahedron);
+//poly_fill(pentagonal_hexecontahedron);
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -517,7 +517,7 @@ function rotation_matrix(u, a) =
 // sf -- [cf, sa]
 //       cf - cantellation fraction
 //       sa - snub angle
-function snubbed(poly, sf = undef) =
+function snub(poly, sf = undef) =
     let(vs = poly[0])
     let(fs = poly[1])
     let(fe = face_equations(poly))
@@ -607,23 +607,27 @@ module face_rotate(poly, fid = 0) {
         children();
 }
 
-module poly_place(poly, sh = sh, fid = 0, place = true) {
+module poly_place(poly, sh = sh, fid = 0, place = true, circ = false) {
     if (place) {
-        pd = diameter(poly, fid);
-        translate([0, 0, sh * face_dist(poly, fid) / pd])
+        s = circ ? 
+            sh / (2 * max(circumradius(poly))) :
+            sh / diameter(poly, fid);
+        translate([0, 0, s * face_dist(poly, fid)])
             face_rotate(poly, fid)
-                scale(sh / pd) 
+                scale(s) 
                     children();
     } else {
         children();
     }
 }
 
+// place = true to rotate the poly onto face and scale it
+// circ = true to define circumsphere diameter with sh (otherwise defines resulting height)
 module poly_fill(
-    poly, sh = sh, fid = 0, place = true
+    poly, sh = sh, fid = 0, place = true, circ = false
 ) {
     validate(poly);
-    poly_place(poly, sh, fid, place) {
+    poly_place(poly, sh, fid, place, circ) {
         polyhedron(poly[0], poly[1]);    
     }
 }
@@ -865,6 +869,25 @@ tetrahedron = [[
     [1, 2, 3]
 ]];
 
+// octahedron = rectified(tetrahedron);
+octahedron = [[
+    [0, 0, -1], // 0
+    [1, 0, 0], // 1
+    [0, 1, 0], // 2
+    [-1, 0, 0], // 3
+    [0, -1, 0], // 4
+    [0, 0, 1] // 5
+], [
+    [0, 1, 2],
+    [0, 2, 3],
+    [0, 3, 4],
+    [0, 4, 1],
+    [5, 2, 1],
+    [5, 3, 2],
+    [5, 4, 3],
+    [5, 1, 4]
+]];
+
 // cube = dual(octahedron);
 cube = [[
     [1, 1, -1], // 0
@@ -884,23 +907,41 @@ cube = [[
     [4, 7, 6, 5]
 ]];
 
-// octahedron = rectified(tetrahedron);
-octahedron = [[
-    [0, 0, -1], // 0
-    [1, 0, 0], // 1
-    [0, 1, 0], // 2
-    [-1, 0, 0], // 3
-    [0, -1, 0], // 4
-    [0, 0, 1] // 5
+// icosahedron = snub(tetrahedron);
+icosahedron = [[
+    [0, -1, -phi], // 0
+    [0, 1, -phi], // 1
+    [-phi, 0, -1], // 2
+    [phi, 0, -1], // 3
+    [-1, -phi, 0], // 4
+    [-1, phi, 0], // 5
+    [1, -phi, 0], // 6
+    [1, phi, 0], // 7
+    [-phi, 0, 1], // 8
+    [phi, 0, 1], // 9
+    [0, -1, phi], // 10
+    [0, 1, phi] // 11    
 ], [
     [0, 1, 2],
-    [0, 2, 3],
-    [0, 3, 4],
-    [0, 4, 1],
-    [5, 2, 1],
-    [5, 3, 2],
-    [5, 4, 3],
-    [5, 1, 4]
+    [1, 0, 3],
+    [0, 2, 4],
+    [2, 1, 5],
+    [1, 3, 7],
+    [3, 0, 6],
+    [1, 7, 5],
+    [0, 4, 6],
+    [2, 8, 4],
+    [2, 5, 8],
+    [3, 6, 9],
+    [3, 9, 7],
+    [4, 10, 6],
+    [5, 7, 11],
+    [8, 10, 4],
+    [5, 11, 8],
+    [9, 11, 7],
+    [6, 10, 9],
+    [8, 11, 10],
+    [9, 10, 11]
 ]];
 
 // dodecahedron = dual(icosahedron);
@@ -940,43 +981,6 @@ dodecahedron = [[
     [19, 18, 15, 13, 17]
 ]];
 
-// icosahedron = snubbed(tetrahedron);
-icosahedron = [[
-    [0, -1, -phi], // 0
-    [0, 1, -phi], // 1
-    [-phi, 0, -1], // 2
-    [phi, 0, -1], // 3
-    [-1, -phi, 0], // 4
-    [-1, phi, 0], // 5
-    [1, -phi, 0], // 6
-    [1, phi, 0], // 7
-    [-phi, 0, 1], // 8
-    [phi, 0, 1], // 9
-    [0, -1, phi], // 10
-    [0, 1, phi] // 11    
-], [
-    [0, 1, 2],
-    [1, 0, 3],
-    [0, 2, 4],
-    [2, 1, 5],
-    [1, 3, 7],
-    [3, 0, 6],
-    [1, 7, 5],
-    [0, 4, 6],
-    [2, 8, 4],
-    [2, 5, 8],
-    [3, 6, 9],
-    [3, 9, 7],
-    [4, 10, 6],
-    [5, 7, 11],
-    [8, 10, 4],
-    [5, 11, 8],
-    [9, 11, 7],
-    [6, 10, 9],
-    [8, 11, 10],
-    [9, 10, 11]
-]];
-
 // --------------------- 13 Arhimedean Solids ---------------------
 
 truncated_tetrahedron = truncated(tetrahedron);
@@ -985,13 +989,13 @@ truncated_cube = truncated(cube);
 truncated_octahedron = truncated(octahedron);
 rhombicuboctahedron = cantellated(cube);
 rhombitruncated_cuboctahedron = beveled(cube);
-snub_cube = snubbed(cube);
+snub_cube = snub(cube);
 icosidodecahedron = rectified(dodecahedron);
 truncated_dodecahedron = truncated(dodecahedron);
 truncated_icosahedron = truncated(icosahedron);
 rhombicosidodecahedron = cantellated(dodecahedron);
 rhombitruncated_icosidodecahedron = beveled(dodecahedron);
-snub_dodecahedron = snubbed(dodecahedron);
+snub_dodecahedron = snub(dodecahedron);
 
 // --------------------- 13 Catalan Solids (Arhimedean Duals) ---------------------
 
