@@ -277,7 +277,7 @@ function rectified(poly) =
 function cantellataion_frac(poly) = 
     let(fs = poly[1])
     let(n = len(fs[0])) // primary face size (assuming it is regular)                    
-    let(fa = 380 / n)
+    let(fa = 360 / n)
     let(da = dihedral_angle(poly)[0]) // angle between primary faces
         1 / (sin(da / 2) / tan(fa / 2) + 1);
 
@@ -353,7 +353,7 @@ function find_vpf(vpf, u, v, k) =
 function bevel_frac(poly) = 
     let(fs = poly[1])
     let(n = len(fs[0])) // primary face size (assuming it is regular)                    
-    let(fa = 380 / n)
+    let(fa = 360 / n)
     let(da = dihedral_angle(poly)[0]) // angle between primary faces
     let(tf = truncation_frac(n))
     let(cf = (1 - tf) / (sin(da / 2) / tan(fa / 2) + 1 - tf))
