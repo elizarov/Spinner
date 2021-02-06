@@ -1,11 +1,11 @@
 // shape height
-sh = 30;
+//sh = 30;
 // border width
 //bw = 3;
 // connector width
 //cw = 1.5;
 
-poly_fill(pentagonal_hexecontahedron);
+//poly_fill(pentagonal_hexecontahedron);
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
