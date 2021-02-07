@@ -666,16 +666,18 @@ module poly_wire_edges_impl(
 }
 
 module poly_wire_faces_impl(
-    poly, pd, bw, s, fid, fill_all
+    poly, pd, bw, s, 
+    wire_poly, fid, 
+    fill_all = []
 ) {
     vs = poly[0];
     fs = poly[1];
     module rec_hull(v, i) {
         if (i == 0) {
-            translate(v[0]) poly_fill0(poly, pd, bw, fid);
+            translate(v[0]) poly_fill0(wire_poly, pd, bw, fid);
         } else {
             hull() {
-                translate(v[i]) poly_fill0(poly, pd, bw, fid);
+                translate(v[i]) poly_fill0(wire_poly, pd, bw, fid);
                 rec_hull(v, i - 1);
             }
         }
@@ -754,7 +756,7 @@ module poly_wire(
 module poly_wire_dual0(
     poly, pd, 
     sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
-    fill = [], fill_reg = [],
+    fill = [], fill_reg = [], dual_fill_reg = []
 ) {
     dual = dual(poly);
     dradius = circumradius(dual)[0];
@@ -768,11 +770,16 @@ module poly_wire_dual0(
     vs = poly[0];
     fs = poly[1];
     dvs = dual[0];
+    // primary
     fill_all = fill_all(poly, fill, fill_reg);
     fill_edges = fill_edges(poly, fill_all);
-    poly_wire_faces_impl(poly, pd, bw, s, fid, fill_all); 
+    poly_wire_faces_impl(poly, pd, bw, s, poly, fid, fill_all); 
     poly_wire_edges_impl(poly, pd, bw, s, poly, fid, fill_edges = fill_edges);
-    poly_wire_edges_impl(dual, pd, dw0, dscale, poly, fid);
+    // dual
+    dual_fill_all = fill_all(dual, [], dual_fill_reg);
+    dual_fill_edges = fill_edges(dual, dual_fill_all);
+    poly_wire_faces_impl(dual, pd, dw0, dscale, poly, fid, dual_fill_all);
+    poly_wire_edges_impl(dual, pd, dw0, dscale, poly, fid, fill_edges = dual_fill_edges);
     // wires between primary and dual
     if (cw != 0) {
         cs = (sh - cw) / pd;
@@ -792,13 +799,16 @@ module poly_wire_dual0(
 module poly_wire_dual(
     poly, 
     sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
-    fill = [], fill_reg = [],
+    fill = [], fill_reg = [], dual_fill_reg = []
 ) {
     validate(poly);
     pd = diameter(poly, fid);
     translate([0, 0, sh * face_dist(poly, fid) / pd])
         face_rotate(poly, fid) 
-            poly_wire_dual0(poly, pd, sh, bw, cw, dw, fid, fill, fill_reg);
+            poly_wire_dual0(
+                poly, pd, sh, bw, cw, dw, fid, 
+                fill, fill_reg, dual_fill_reg
+            );
 }
 
 module validate(poly) {
