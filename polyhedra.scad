@@ -624,7 +624,8 @@ module poly_place(poly, sh = sh, fid = 0, place = true, circ = false) {
 // place = true to rotate the poly onto face and scale it
 // circ = true to define circumsphere diameter with sh (otherwise defines resulting height)
 module poly_fill(
-    poly, sh = sh, fid = 0, place = true, circ = false
+    poly, sh = sh, fid = 0, 
+    place = true, circ = false
 ) {
     validate(poly);
     poly_place(poly, sh, fid, place, circ) {
@@ -632,11 +633,8 @@ module poly_fill(
     }
 }
 
-module poly_fill0(
-    poly, pd, 
-    bw = bw, fid = 0
-) {
-    scale(bw / pd) 
+module poly_fill0(poly, s, fid = 0) {
+    scale(s) 
         polyhedron(poly[0], poly[1]);    
 }
 
@@ -661,8 +659,8 @@ module poly_wire_edges_impl(
                 p1 = p0 + pq;
                 q1 = q0 - pq; 
                 hull() {
-                    translate(p1) poly_fill0(wire_poly, pd, bw, fid);
-                    translate(q1) poly_fill0(wire_poly, pd, bw, fid);
+                    translate(p1) poly_fill0(wire_poly, bw / pd, fid);
+                    translate(q1) poly_fill0(wire_poly, bw / pd, fid);
                 }                
             }
         }
@@ -678,10 +676,10 @@ module poly_wire_faces_impl(
     fs = poly[1];
     module rec_hull(v, i) {
         if (i == 0) {
-            translate(v[0]) poly_fill0(wire_poly, pd, bw, fid);
+            translate(v[0]) poly_fill0(wire_poly, bw / pd, fid);
         } else {
             hull() {
-                translate(v[i]) poly_fill0(wire_poly, pd, bw, fid);
+                translate(v[i]) poly_fill0(wire_poly, bw / pd, fid);
                 rec_hull(v, i - 1);
             }
         }
@@ -738,7 +736,7 @@ module poly_wire0(
         for (i = [0:len(vs) - 1]) {
             if (search(i, fill_verts) == []) {
                 p0 = vs[i] * s;
-                translate(p0) poly_fill0(poly, pd, bw, fid); 
+                translate(p0) poly_fill0(poly, bw / pd, fid); 
             }
         }
     }
@@ -748,10 +746,13 @@ module poly_wire(
     poly, 
     sh = sh, bw = bw, fid = 0, 
     fill = [], fill_reg = [], 
-    eps = 0
+    eps = 0,
+    circ = false
 ) {
     validate(poly);
-    pd = diameter(poly, fid);
+    pd = circ ? 
+        2 * max(circumradius(poly)) :
+        diameter(poly, fid);
     translate([0, 0, sh * face_dist(poly, fid) / pd])
         face_rotate(poly, fid)
             poly_wire0(poly, pd, sh, bw, fid, fill, fill_reg, eps);
@@ -792,8 +793,8 @@ module poly_wire_dual0(
             for (u = fs[i]) {
                 p0 = vs[u] * cs;
                 hull() {
-                    translate(c0) poly_fill0(poly, pd, cw, fid);
-                    translate(p0) poly_fill0(poly, pd, cw, fid);
+                    translate(c0) poly_fill0(poly, cw / pd, fid);
+                    translate(p0) poly_fill0(poly, cw / pd, fid);
                 }       
             }
         }
