@@ -1,9 +1,9 @@
 // shape height
 sh = 50;
 // border width
-bw = 2.5;
+bw = 3;
 // connector width
-cw = 1.6;
+cw = 2;
 
 include <../polyhedra.scad>;
 
