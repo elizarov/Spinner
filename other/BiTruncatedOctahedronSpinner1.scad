@@ -21,7 +21,7 @@ include <../polyhedra.scad>;
 spinner();
 
 difference() {
-    poly_wire(truncated(truncated_octahedron), sh, sw, fill_reg = [3]);
+    poly_wire(truncated(truncated_octahedron), sh, sw, fill_face_sizes = [3]);
     spinner(g2, eps);
 }
 

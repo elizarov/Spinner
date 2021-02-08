@@ -21,7 +21,7 @@ include <../polyhedra.scad>;
 spinner();
 
 difference() {
-    poly_wire(rectified(truncated_dodecahedron), sh, sw, fill_reg = [3]);
+    poly_wire(rectified(truncated_dodecahedron), sh, sw, fill_face_sizes = [3]);
     spinner(g2, eps);
 }
 

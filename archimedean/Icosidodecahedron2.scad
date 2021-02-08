@@ -5,4 +5,4 @@ bw = 3;
 
 include <../polyhedra.scad>;
 
-poly_wire(icosidodecahedron, fill_reg=[3]);
+poly_wire(icosidodecahedron, fill_face_sizes=[3]);

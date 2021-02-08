@@ -14,6 +14,6 @@ fid = filter_face_ids(truncated_icosahedron, [5])[0];
 poly_wire_dual(
     truncated_icosahedron,
     dw = dw,
-    fill_reg = [5],
+    fill_face_sizes = [5],
     fid = fid
 );

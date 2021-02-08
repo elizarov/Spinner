@@ -7,4 +7,4 @@ cw = 2;
 
 include <../polyhedra.scad>;
 
-poly_wire_dual(pentagonal_icositetrahedron, dual_fill_reg = [4]);
+poly_wire_dual(pentagonal_icositetrahedron, dual_fill_face_sizes = [4]);

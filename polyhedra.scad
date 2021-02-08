@@ -119,10 +119,10 @@ function diameter(poly, fid = 0) =
         // yes -- diameter face to this vertex
         norm(c - ff[0]);
    
-function filter_face_ids(poly, fill_reg) = 
+function filter_face_ids(poly, fill_face_sizes) = 
     let(fs = poly[1])
     [
-        for(k = fill_reg)
+        for(k = fill_face_sizes)
             for (i = [0:len(fs) - 1]) 
                 if (len(fs[i]) == k)
                     i
@@ -690,8 +690,8 @@ module poly_wire_faces_impl(
     }  
 }
 
-function fill_all(poly, fill, fill_reg) =
-    concat(fill, filter_face_ids(poly, fill_reg)); 
+function fill_all(poly, fill_face_ids, fill_face_sizes) =
+    concat(fill_face_ids, filter_face_ids(poly, fill_face_sizes)); 
 
 function fill_edges(poly, fill_all) =
     let(fs = poly[1])
@@ -713,22 +713,22 @@ function fill_verts(poly, fill_all) =
                 p
     ];        
 
-// fill - a list of face ids to fill
-// fill_reg - a list of face sizes to fill
+// fill_face_ids - a list of face ids to fill_face_ids
+// fill_face_sizes - a list of face sizes to fill_face_ids
 module poly_wire0(
     poly, pd,
     sh = sh, bw = bw, fid = 0, 
-    fill = [], fill_reg = [],
+    fill_face_ids = [], fill_face_sizes = [],
     eps = 0
 ) {
     s = (sh - bw) / pd;
     vs = poly[0];
     fs = poly[1];
-    fill_all = fill_all(poly, fill, fill_reg);
+    fill_all = fill_all(poly, fill_face_ids, fill_face_sizes);
     fill_edges = fill_edges(poly, fill_all);
     fill_verts = fill_verts(poly, fill_all); 
     // filled faces
-    poly_wire_faces_impl(poly, pd, bw, s, fid, fill_all); 
+    poly_wire_faces_impl(poly, pd, bw, s, poly, fid, fill_all); 
     // edges
     poly_wire_edges_impl(poly, pd, bw, s, poly, fid, fill_edges, eps);
     // vertices
@@ -745,7 +745,7 @@ module poly_wire0(
 module poly_wire(
     poly, 
     sh = sh, bw = bw, fid = 0, 
-    fill = [], fill_reg = [], 
+    fill_face_ids = [], fill_face_sizes = [], 
     eps = 0,
     circ = false
 ) {
@@ -755,13 +755,13 @@ module poly_wire(
         diameter(poly, fid);
     translate([0, 0, sh * face_dist(poly, fid) / pd])
         face_rotate(poly, fid)
-            poly_wire0(poly, pd, sh, bw, fid, fill, fill_reg, eps);
+            poly_wire0(poly, pd, sh, bw, fid, fill_face_ids, fill_face_sizes, eps);
 }
 
 module poly_wire_dual0(
     poly, pd, 
     sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
-    fill = [], fill_reg = [], dual_fill_reg = []
+    fill_face_ids = [], fill_face_sizes = [], dual_fill_face_sizes = []
 ) {
     dual = dual(poly);
     dradius = circumradius(dual)[0];
@@ -776,12 +776,12 @@ module poly_wire_dual0(
     fs = poly[1];
     dvs = dual[0];
     // primary
-    fill_all = fill_all(poly, fill, fill_reg);
+    fill_all = fill_all(poly, fill_face_ids, fill_face_sizes);
     fill_edges = fill_edges(poly, fill_all);
     poly_wire_faces_impl(poly, pd, bw, s, poly, fid, fill_all); 
     poly_wire_edges_impl(poly, pd, bw, s, poly, fid, fill_edges = fill_edges);
     // dual
-    dual_fill_all = fill_all(dual, [], dual_fill_reg);
+    dual_fill_all = fill_all(dual, [], dual_fill_face_sizes);
     dual_fill_edges = fill_edges(dual, dual_fill_all);
     poly_wire_faces_impl(dual, pd, dw0, dscale, poly, fid, dual_fill_all);
     poly_wire_edges_impl(dual, pd, dw0, dscale, poly, fid, fill_edges = dual_fill_edges);
@@ -804,7 +804,7 @@ module poly_wire_dual0(
 module poly_wire_dual(
     poly, 
     sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
-    fill = [], fill_reg = [], dual_fill_reg = []
+    fill_face_ids = [], fill_face_sizes = [], dual_fill_face_sizes = []
 ) {
     validate(poly);
     pd = diameter(poly, fid);
@@ -812,7 +812,7 @@ module poly_wire_dual(
         face_rotate(poly, fid) 
             poly_wire_dual0(
                 poly, pd, sh, bw, cw, dw, fid, 
-                fill, fill_reg, dual_fill_reg
+                fill_face_ids, fill_face_sizes, dual_fill_face_sizes
             );
 }
 
