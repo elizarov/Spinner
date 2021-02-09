@@ -6,7 +6,7 @@ include <bezier.scad>;
 // angle
 a = 45; // [0:90]
 // spinner height
-sh = 10;
+sh = 12;
 // neck width
 nw = 6;
 // base width
@@ -14,26 +14,26 @@ bw = nw + sh * sin(a);
 echo("base width", bw = bw);
 
 // spinner shell diameter
-ds = bw + 9;
+ds = bw + 10;
 rs = ds / 2; // radius
 
 // arm radius
-ra = 35; 
+ra = 25; 
 // arm width
-wa = 12;
+wa = 18;
 
 // number of arms
 n = 3;
 
 // shell chamfers
-ch = 1.5;
+ch = 2;
 // spinner chamfers
 sch = 1.5;
 
 echo("real base width", bw - 2 * sch * tan(a));
 
 // gap between moving parts
-gap = 0.5;
+gap = 0.3;
 // overlap for clean differences and unions
 eps = 0.1; 
 
@@ -77,19 +77,15 @@ module arm() {
 
 difference() {
     full_shell();
-    spinner0(g2, eps);
-    for (i = [0:n-1])
-        rotate([0, 0, 360 * i / n])
-            translate([ra, 0, 0]) 
-               spinner0(g2, eps);
+    place() { 
+        spinner0(g2, eps);
+    }
 }
 
 
-spinner();
-for (i = [0:n-1])
-    rotate([0, 0, 360 * i / n])
-        translate([ra, 0, 0]) 
-            spinner();
+place() {
+    spinner();
+}
 
 module full_shell() {
     shell();
@@ -119,6 +115,14 @@ module spinner() {
         translate([0, 0, fsh])
             cylinder(d = dd, h = sh - 2 * fsh);
     }
+}
+
+module place() {
+    children();
+    for (i = [0:n-1])
+        rotate([0, 0, 360 * i / n])
+            translate([ra, 0, 0]) 
+               children();
 }
 
 module spinner0(dr = 0, eps = 0, cy = 0) {
