@@ -5,7 +5,7 @@
 // connector width
 //cw = 1.5;
 
-//poly_fill(pentagonal_hexecontahedron);
+//poly_wire(small_stellated_dodecahedron);
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -22,8 +22,6 @@ function avg(v) = sum(v) / len(v);
 function vnorm(v) = v / norm(v);    
 
 function sqr(x) = x * x;
-
-function flatten(a) = [for(l = a) for(e = l) e];
 
 function sorted(a) = len(a) == 0 ? [] : 
     let(pivot   = a[floor(len(a) / 2)])
@@ -42,18 +40,46 @@ function distinct(v, i = 0, r = []) =
             approx_contains(r, a) ? 
                 distinct(v, i + 1, r) :
                 distinct(v, i + 1, concat(r, [a]));
-
-function face_equation(poly, fid) =
-    let(vs = poly[0])
-    let(fs = poly[1])
-    let(f = fs[fid])
-    let(a = vs[f[0]])
-    let(b = vs[f[1]])
-    let(c = vs[f[2]])
+    
+// plane equation by 3 point    
+function plane3(a, b, c) =    
     let(v1 = b - a)
     let(v2 = c - a)
     let(n = vnorm(cross(v1, v2)))
     [n.x, n.y, n.z, n * a];
+    
+function is_outside_plane(poly, eq) = 
+    let(vs = poly[0])  
+    let(n = [eq.x, eq.y, eq.z])
+    let(ds = [for(a = vs) n * a - eq[3]])
+    let(pos = [for(d = ds) if (d > c_eps) 1])
+    let(neg = [for(d = ds) if (d < -c_eps) 1])
+        len(pos) == 0 || len(neg) == 0;
+    
+function find_outside_plane(poly) =
+    let(vs = poly[0])    
+    let(ops = [
+        for(i = [0:len(vs) - 3])
+            for(j = [i + 1:len(vs) - 2])
+                for(k = [j + 1:len(vs) - 1])
+                    let(eq = plane3(vs[i], vs[j], vs[k]))
+                    if (is_outside_plane(poly, eq))
+                        eq
+    ])
+    assert(len(ops) > 0, "Cannot find outside plane")
+        ops[0];
+                            
+function default_face_equation(poly) =
+    let(eq0 = face_equation(poly, 0))
+    is_outside_plane(poly, eq0) ? eq0 :
+        find_outside_plane(poly);    
+
+function face_equation(poly, fid = undef) =
+    is_undef(fid) ? default_face_equation(poly) :
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(f = fs[fid])
+    plane3(vs[f[0]], vs[f[1]], vs[f[2]]);
 
 function face_equations(poly) =
     let(fs = poly[1])
@@ -101,15 +127,15 @@ function dihedral_angle(poly) =
                         180 - acos(e1.x * e2.x + e1.y * e2.y + e1.z * e2.z)
     ]);
         
-function face_center(poly, fid = 0) =
+function face_center(poly, fid = undef) =
     let(eq = face_equation(poly, fid))
     let(d = eq[3])
     [eq.x * d, eq.y * d, eq.z * d];
         
-function face_dist(poly, fid = 0) =
+function face_dist(poly, fid = undef) =
     norm(face_center(poly, fid));        
     
-function diameter(poly, fid = 0) =
+function diameter(poly, fid = undef) =
     let(c = face_center(poly, fid))
     let(vs = poly[0])
     // check if this polyhedron has a vertex opposing a center of a face
@@ -571,7 +597,7 @@ function snub(poly, sf = undef) =
             ])
     ])
     // faces from the original edges
-    let(sf3 = flatten([
+    let(sf3 = [
         for (k1 = [0:len(fs) - 1]) 
             let(f1 = fs[k1])
             for (i1 = [0:len(f1) - 1])
@@ -586,15 +612,47 @@ function snub(poly, sf = undef) =
                             if (f2[i2] == v && f2[(i2 + 1) % len(f2)] == u)
                                 let(k2u = find_fv(fv, k2, u))
                                 let(k2v = find_fv(fv, k2, v))
-                                    [ [k1v, k1u, k2v], [k1u, k2u, k2v] ]
-    ]))
+                                    each [ [k1v, k1u, k2v], [k1u, k2u, k2v] ]
+    ])
         [svs, concat(sf1, sf2, sf3)];
 
 
+// ------------------- Augmentation -------------------
+
+
+// h -- augmentation height as a multiple of edge length             
+//       0 - no augmentation
+function augmented(poly, h) =
+    h <= 0 ? poly :
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(fe = face_equations(poly))
+    // new vertices coords: old vertices + augmented faces
+    let(avs = concat(vs, [
+        for(k = [0:len(fs) - 1])
+            let(f = fs[k]) 
+            let(eq = fe[k])
+            let(n = [eq.x, eq.y, eq.z]) // face normal
+            let(d = eq[3]) // face distance
+            let(c = n * d) // projected face center
+            let(el = norm(vs[f[0]] - vs[f[1]])) // edge length
+                c - n * el * h // augment normal to face
+    ]))
+    // new faces from the autmented original faces
+    let(afs = [
+        for (k = [0:len(fs) - 1])
+            let(f = fs[k])
+            let(w = len(vs) + k) // autmented vertex id
+            for(i = [0:len(f) - 1]) 
+                let(u = f[i])
+                let(v = f[(i + 1) % len(f)])
+                    [u, v, w]
+    ]) 
+        [avs, afs];
 
 // ------------------- Drawing -------------------
     
-module face_rotate(poly, fid = 0) {
+module face_rotate(poly, fid = undef) {
     c = face_center(poly, fid);
     az = c.x == 0 ? 90 : -atan(c.y / c.x);
     rz = [
@@ -607,7 +665,7 @@ module face_rotate(poly, fid = 0) {
         children();
 }
 
-module poly_place(poly, sh = sh, fid = 0, place = true, circ = false) {
+module poly_place(poly, sh = sh, fid = undef, place = true, circ = false) {
     if (place) {
         s = circ ? 
             sh / (2 * max(circumradius(poly))) :
@@ -624,7 +682,7 @@ module poly_place(poly, sh = sh, fid = 0, place = true, circ = false) {
 // place = true to rotate the poly onto face and scale it
 // circ = true to define circumsphere diameter with sh (otherwise defines resulting height)
 module poly_fill(
-    poly, sh = sh, fid = 0, 
+    poly, sh = sh, fid = undef, 
     place = true, circ = false
 ) {
     validate(poly);
@@ -633,7 +691,7 @@ module poly_fill(
     }
 }
 
-module poly_fill0(poly, s, fid = 0) {
+module poly_fill0(poly, s, fid = undef) {
     scale(s) 
         polyhedron(poly[0], poly[1]);    
 }
@@ -717,7 +775,7 @@ function fill_verts(poly, fill_all) =
 // fill_face_sizes - a list of face sizes to fill_face_ids
 module poly_wire0(
     poly, pd,
-    sh = sh, bw = bw, fid = 0, 
+    sh = sh, bw = bw, fid = undef, 
     fill_face_ids = [], fill_face_sizes = [],
     eps = 0
 ) {
@@ -744,7 +802,7 @@ module poly_wire0(
 
 module poly_wire(
     poly, 
-    sh = sh, bw = bw, fid = 0, 
+    sh = sh, bw = bw, fid = undef, 
     fill_face_ids = [], fill_face_sizes = [], 
     eps = 0,
     circ = false
@@ -760,7 +818,7 @@ module poly_wire(
 
 module poly_wire_dual0(
     poly, pd, 
-    sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
+    sh = sh, bw = bw, cw = cw, dw = undef, fid = undef,
     fill_face_ids = [], fill_face_sizes = [], dual_fill_face_sizes = []
 ) {
     dual = dual(poly);
@@ -803,7 +861,7 @@ module poly_wire_dual0(
 
 module poly_wire_dual(
     poly, 
-    sh = sh, bw = bw, cw = cw, dw = undef, fid = 0,
+    sh = sh, bw = bw, cw = cw, dw = undef, fid = undef,
     fill_face_ids = [], fill_face_sizes = [], dual_fill_face_sizes = []
 ) {
     validate(poly);
@@ -1023,3 +1081,7 @@ pentakis_dodecahedron = dual(truncated_icosahedron);
 deltoidal_hexecontahedron = dual(rhombicosidodecahedron);
 disdyakis_triacontahedron = dual(rhombitruncated_icosidodecahedron);
 pentagonal_hexecontahedron = dual(snub_dodecahedron);
+
+// --------------------- Stellated polyhedra ---------------------
+
+small_stellated_dodecahedron = augmented(dodecahedron, sqrt(1 + 2/5 * sqrt(5)));
