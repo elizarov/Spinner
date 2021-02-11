@@ -5,7 +5,7 @@
 // connector width
 //cw = 1.5;
 
-//poly_wire(small_stellated_dodecahedron);
+//poly_fill(great_stellated_dodecahedron);
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -19,7 +19,9 @@ s_eps = 1e-15;
 function sum0(v, i, r) = i < len(v) ? sum0(v, i + 1, r + v[i]) : r;
 function sum(v) = sum0(v, 1, v[0]);
 function avg(v) = sum(v) / len(v);
-function vnorm(v) = v / norm(v);    
+function vnorm(v) = 
+    let(l = norm(v))
+    l < c_eps ? v : v / l;    
 
 function sqr(x) = x * x;
 
@@ -32,7 +34,7 @@ function sorted(a) = len(a) == 0 ? [] :
 
 function approx_contains(v, a) =
     let(m = [for (x = v) if (abs(x - a) < c_eps) 1])
-        m != [];
+        len(m) > 0;
        
 function distinct(v, i = 0, r = []) =
     i == len(v) ? r :
@@ -49,12 +51,13 @@ function plane3(a, b, c) =
     [n.x, n.y, n.z, n * a];
     
 function is_outside_plane(poly, eq) = 
-    let(vs = poly[0])  
     let(n = [eq.x, eq.y, eq.z])
-    let(ds = [for(a = vs) n * a - eq[3]])
-    let(pos = [for(d = ds) if (d > c_eps) 1])
-    let(neg = [for(d = ds) if (d < -c_eps) 1])
-        len(pos) == 0 || len(neg) == 0;
+    norm(n) < c_eps ? false :
+        let(vs = poly[0])  
+        let(ds = [for(a = vs) n * a - eq[3]])
+        let(pos = [for(d = ds) if (d > c_eps) 1])
+        let(neg = [for(d = ds) if (d < -c_eps) 1])
+            len(pos) == 0 || len(neg) == 0;
     
 function find_outside_plane(poly) =
     let(vs = poly[0])    
@@ -1084,4 +1087,9 @@ pentagonal_hexecontahedron = dual(snub_dodecahedron);
 
 // --------------------- Stellated polyhedra ---------------------
 
+star_equilateral_24deltahedron= augmented(cube, 1/sqrt(2));
+star_equilateral_60deltahedron = augmented(dodecahedron, sqrt(0.5 - 0.1 * sqrt(5)));
 small_stellated_dodecahedron = augmented(dodecahedron, sqrt(1 + 2/5 * sqrt(5)));
+small_triambic_icosahedron = augmented(icosahedron, sqrt(15)/15);
+star_equilateral_60deltahedron2 = augmented(icosahedron, sqrt(6)/3);
+great_stellated_dodecahedron = augmented(icosahedron, sqrt(3)*(3 + sqrt(5))/6);
