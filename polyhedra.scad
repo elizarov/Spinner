@@ -5,7 +5,7 @@
 // connector width
 //cw = 1.5;
 
-//poly_fill(great_stellated_dodecahedron);
+//poly_fill(icosahedral_star_deltahedron);
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -1088,8 +1088,8 @@ pentagonal_hexecontahedron = dual(snub_dodecahedron);
 // --------------------- Stellated polyhedra ---------------------
 
 star_equilateral_24deltahedron= augmented(cube, 1/sqrt(2));
-star_equilateral_60deltahedron = augmented(dodecahedron, sqrt(0.5 - 0.1 * sqrt(5)));
+dodecahedral_star_deltahedron = augmented(dodecahedron, sqrt(0.5 - 0.1 * sqrt(5)));
 small_stellated_dodecahedron = augmented(dodecahedron, sqrt(1 + 2/5 * sqrt(5)));
 small_triambic_icosahedron = augmented(icosahedron, sqrt(15)/15);
-star_equilateral_60deltahedron2 = augmented(icosahedron, sqrt(6)/3);
+icosahedral_star_deltahedron = augmented(icosahedron, sqrt(6)/3);
 great_stellated_dodecahedron = augmented(icosahedron, sqrt(3)*(3 + sqrt(5))/6);
