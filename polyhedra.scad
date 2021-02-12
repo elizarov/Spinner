@@ -1,11 +1,11 @@
 // shape height
-//sh = 30;
+sh = 30;
 // border width
 //bw = 3;
 // connector width
 //cw = 1.5;
 
-//poly_fill(icosahedral_star_deltahedron);
+poly_fill(rectified(pentagonal_hexecontahedron));
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -42,6 +42,22 @@ function distinct(v, i = 0, r = []) =
             approx_contains(r, a) ? 
                 distinct(v, i + 1, r) :
                 distinct(v, i + 1, concat(r, [a]));
+
+
+function approx_equals_list(a, b, i = 0) =
+   i >= len(a) || i >= len(b) ? len(a) == len(b) :
+        abs(a[i] - b[i]) < c_eps && approx_equals_list(a, b, i + 1);
+    
+function approx_contains_list(v, a) =
+    let(m = [for (x = v) if (approx_equals_list(a, x)) 1])
+        len(m) > 0;
+    
+function distinct_lists(v, i = 0, r = []) =
+    i == len(v) ? r :
+        let(a = v[i])
+            approx_contains_list(r, a) ? 
+                distinct_lists(v, i + 1, r) :
+                distinct_lists(v, i + 1, concat(r, [a]));    
     
 // plane equation by 3 point    
 function plane3(a, b, c) =    
@@ -178,6 +194,28 @@ function sort_face0(vs, f, c, i, r) =
 function sort_face(vs, f) =
     let(c = avg([for (k = f) vs[k]]))
         sort_face0(vs, f, c, 0, [f[0]]);
+    
+function face_signature(poly, fid) = 
+    let(vs = poly[0])
+    let(fs = poly[1])
+    let(f = fs[fid])
+    let(eq = face_equation(poly, fid))
+    let(d = eq[3])
+    let(c = [eq.x * d, eq.y * d, eq.z * d])
+    let(ss = [
+        for(first = [0:len(f) - 1]) [
+            let(v0 = vs[f[first]] - c)
+            for(i = [0:len(f) - 1]) 
+               0 // TBD!!!!!
+        ]        
+    ])
+        0; // TBD!!!
+            
+function face_kinds(poly) =
+    let(fs = poly[1])
+    distinct_lists([for(k = [0:len(fs) - 1]) 
+        face_signature(poly, fid)
+    ]);
     
 // ------------------- Dual -------------------
  
