@@ -1,11 +1,11 @@
 // shape height
-sh = 30;
+//sh = 30;
 // border width
 //bw = 3;
 // connector width
 //cw = 1.5;
 
-poly_fill(rectified(pentagonal_hexecontahedron));
+//poly_fill(rectified(pentagonal_hexecontahedron));
 //poly_fill(icosahedron);
 //poly_wire(tetrahedron);
 //poly_wire_dual(cube);
@@ -172,7 +172,16 @@ function filter_face_ids(poly, fill_face_sizes) =
                 if (len(fs[i]) == k)
                     i
     ];
-    
+
+function filter_face_kinds(poly, fill_face_kinds) = 
+    let(fks = poly[3])
+    [
+        for(k = fill_face_kinds)
+            for (i = [0:len(fks) - 1]) 
+                if (fks[i] == k)
+                    i
+    ];
+
 function next_sorted_face(vs, f, c, u) =
     let(a = vnorm(vs[u] - c))
     let(m = [
@@ -789,8 +798,8 @@ module poly_wire_faces_impl(
     }  
 }
 
-function fill_all(poly, fill_face_ids, fill_face_sizes) =
-    concat(fill_face_ids, filter_face_ids(poly, fill_face_sizes)); 
+function fill_all(poly, fill_face_ids, fill_face_sizes, fill_face_kinds) =
+    concat(fill_face_ids, filter_face_ids(poly, fill_face_sizes), filter_face_kinds(poly, fill_face_kinds)); 
 
 function fill_edges(poly, fill_all) =
     let(fs = poly[1])
@@ -817,13 +826,13 @@ function fill_verts(poly, fill_all) =
 module poly_wire0(
     poly, pd,
     sh = sh, bw = bw, fid = undef, 
-    fill_face_ids = [], fill_face_sizes = [],
+    fill_face_ids = [], fill_face_sizes = [], fill_face_kinds = [],
     eps = 0
 ) {
     s = (sh - bw) / pd;
     vs = poly[0];
     fs = poly[1];
-    fill_all = fill_all(poly, fill_face_ids, fill_face_sizes);
+    fill_all = fill_all(poly, fill_face_ids, fill_face_sizes, fill_face_kinds);
     fill_edges = fill_edges(poly, fill_all);
     fill_verts = fill_verts(poly, fill_all); 
     // filled faces
@@ -844,7 +853,7 @@ module poly_wire0(
 module poly_wire(
     poly, 
     sh = sh, bw = bw, fid = undef, 
-    fill_face_ids = [], fill_face_sizes = [], 
+    fill_face_ids = [], fill_face_sizes = [], fill_face_kinds = [], 
     eps = 0,
     circ = false
 ) {
@@ -854,7 +863,7 @@ module poly_wire(
         diameter(poly, fid);
     translate([0, 0, sh * face_dist(poly, fid) / pd])
         face_rotate(poly, fid)
-            poly_wire0(poly, pd, sh, bw, fid, fill_face_ids, fill_face_sizes, eps);
+            poly_wire0(poly, pd, sh, bw, fid, fill_face_ids, fill_face_sizes, fill_face_kinds, eps);
 }
 
 module poly_wire_dual0(
