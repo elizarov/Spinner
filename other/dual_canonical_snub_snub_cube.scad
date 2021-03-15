@@ -1,5 +1,5 @@
 // shape height
-sh = 50;
+sh = 30;
 // border width
 bw = 2;
 
