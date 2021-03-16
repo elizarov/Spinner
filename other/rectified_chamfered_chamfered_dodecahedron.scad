@@ -1,4 +1,15 @@
-// polyhedron(rectified_chamfered_chamfered_dodecahedron[0], rectified_chamfered_chamfered_dodecahedron[1]);
+// shape height
+sh = 60;
+// border width
+bw = 2;
+
+include <../polyhedra.scad>;
+
+poly_wire(
+  rectified_chamfered_chamfered_dodecahedron, 
+  fid = 12,
+  fill_face_sizes = [3]
+);
 
 // Elements of the rectified_chamfered_chamfered_dodecahedron array
 //    0 - vertices coordinates
